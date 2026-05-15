@@ -58,7 +58,7 @@ for df, cols in [(df_barang, ['Harga Modal', 'Stok']),
 
 # --- UI STREAMLIT ---
 st.set_page_config(page_title="GETMOICLOTHES Online", layout="wide")
-st.title("👗 GETMOICLOTHES - Advanced System")
+st.title("👗 GETMOICLOTHES - Advanced Cart System")
 
 menu = [
     "Dashboard Utama", 
@@ -104,7 +104,7 @@ elif choice == "Riwayat Penjualan":
     st.subheader("📈 Laporan Data Penjualan")
     if not df_penjualan.empty:
         col1, col2 = st.columns(2)
-        col1.metric("Total Baju Utama Terjual", f"{df_penjualan['Qty'].sum():,.0f} pcs")
+        col1.metric("Total Baju Terjual (Qty)", f"{df_penjualan['Qty'].sum():,.0f} pcs")
         col2.metric("Total Omset Masuk", f"Rp {df_penjualan['Total Penjualan'].sum():,.0f}")
         st.dataframe(df_penjualan, use_container_width=True)
     else:
@@ -112,7 +112,6 @@ elif choice == "Riwayat Penjualan":
 
 elif choice == "Riwayat Operasional":
     st.subheader("💸 Laporan Biaya Operasional")
-    st.warning("Catatan: Biaya packaging/resi TIDAK masuk ke sini, melainkan otomatis masuk ke Modal Penjualan per transaksi.")
     if not df_operasional.empty:
         st.metric("Total Uang Terpakai (Non-Stok)", f"Rp {df_operasional['Biaya'].sum():,.0f}")
         st.dataframe(df_operasional, use_container_width=True)
@@ -120,85 +119,79 @@ elif choice == "Riwayat Operasional":
         st.info("Belum ada data pengeluaran operasional.")
 
 elif choice == "Kasir & Resi (Nego)":
-    st.subheader("🛒 Kasir Penjualan Fleksibel")
+    st.subheader("🛒 Kasir Keranjang Belanja")
     if not df_barang.empty:
         opsi_semua = [f"{row['Kode Item']} - {row['Nama Barang']}" for _, row in df_barang.iterrows() if row['Stok'] > 0]
         
-        if opsi_semua:
-            st.markdown("**Langkah 1: Pilih Barang Utama**")
-            pilihan_baju = st.selectbox("Pilih Baju/Celana (Wajib)", opsi_semua)
-            kode_baju = pilihan_baju.split(" - ")[0]
-            item_baju = df_barang[df_barang['Kode Item'] == kode_baju].iloc[0]
-            
-            st.markdown("**Langkah 2: Pilih Tambahan (Opsional)**")
-            pilihan_tambahan = st.multiselect("Pilih Tambahan (Plastik / Resi / Baju Lain)", opsi_semua, placeholder="Bisa pilih lebih dari satu...")
-            
-            st.markdown("---")
-            st.markdown("### 📝 Atur Jumlah (Qty) Masing-Masing")
-            
+        # SATU KOTAK UNTUK SEMUA PILIHAN
+        pilihan_keranjang = st.multiselect("Pilih SEMUA Barang (Baju & Packaging) yang mau di-checkout:", opsi_semua, placeholder="Pilih baju, celana, plastik, print resi...")
+        
+        if pilihan_keranjang:
+            st.markdown("### 📝 Atur Jumlah (Qty)")
             col_q1, col_q2 = st.columns(2)
             
-            # Input untuk baju utama
-            qty_baju = col_q1.number_input(f"📦 Qty: {item_baju['Nama Barang']}", min_value=1, max_value=int(item_baju['Stok']), value=1)
+            qty_dict = {}
+            total_modal_baju = 0
+            total_modal_pack = 0
+            qty_baju_total = 0
+            rincian_nama = []
             
-            # Input dinamis untuk tiap barang tambahan
-            qty_tambahan = {}
-            for idx, p in enumerate(pilihan_tambahan):
-                kode_p = p.split(" - ")[0]
-                item_p = df_barang[df_barang['Kode Item'] == kode_p].iloc[0]
+            # Bikin input Qty & Hitung Modal Langsung
+            for idx, p in enumerate(pilihan_keranjang):
+                kode = p.split(" - ")[0]
+                item = df_barang[df_barang['Kode Item'] == kode].iloc[0]
                 
-                # Biar tampilannya rapi kanan-kiri
+                # Tampilan selang-seling biar rapi
                 if idx % 2 == 0:
-                    qty_tambahan[kode_p] = col_q2.number_input(f"📦 Qty: {item_p['Nama Barang']}", min_value=1, max_value=int(item_p['Stok']), value=1)
+                    qty = col_q1.number_input(f"📦 Qty: {item['Nama Barang']}", min_value=1, max_value=int(item['Stok']), value=1)
                 else:
-                    qty_tambahan[kode_p] = col_q1.number_input(f"📦 Qty: {item_p['Nama Barang']}", min_value=1, max_value=int(item_p['Stok']), value=1)
-            
-            # --- LOGIKA PERHITUNGAN MODAL ---
-            total_modal_baju = item_baju['Harga Modal'] * qty_baju
-            total_modal_tambahan = 0
-            nama_lengkap_transaksi = f"{qty_baju}x {item_baju['Nama Barang']}"
-            
-            for p in pilihan_tambahan:
-                kode_p = p.split(" - ")[0]
-                item_p = df_barang[df_barang['Kode Item'] == kode_p].iloc[0]
-                qty_p = qty_tambahan[kode_p]
+                    qty = col_q2.number_input(f"📦 Qty: {item['Nama Barang']}", min_value=1, max_value=int(item['Stok']), value=1)
                 
-                total_modal_tambahan += (item_p['Harga Modal'] * qty_p)
-                nama_lengkap_transaksi += f" + {qty_p}x {item_p['Nama Barang']}"
+                qty_dict[kode] = qty
+                sub_modal = item['Harga Modal'] * qty
+                rincian_nama.append(f"{qty}x {item['Nama Barang']}")
+                
+                # Deteksi otomatis: Apakah ini packaging? (Kode depan P atau ada kata plastik/resi/print)
+                is_packaging = kode.startswith('P') or any(k in item['Nama Barang'].lower() for k in ['plastik', 'print', 'resi', 'polymailer'])
+                
+                if is_packaging:
+                    total_modal_pack += sub_modal
+                else:
+                    total_modal_baju += sub_modal
+                    qty_baju_total += qty  # Ini yang bakal dihitung sebagai Qty Penjualan di Sheets!
             
-            total_modal_semua = total_modal_baju + total_modal_tambahan
+            total_modal_semua = total_modal_baju + total_modal_pack
             
-            st.info(f"💡 **Total Modal HPP Semua Item: Rp {total_modal_semua:,.0f}**")
+            st.markdown("---")
+            st.markdown("### 💡 Rincian Modal (HPP)")
+            st.info(f"👕 **Modal Baju ({qty_baju_total} pcs):** Rp {total_modal_baju:,.0f} \n\n"
+                    f"📦 **Modal Packaging/Resi:** Rp {total_modal_pack:,.0f} \n\n"
+                    f"**= TOTAL MODAL TRANSAKSI: Rp {total_modal_semua:,.0f}**")
             
             st.markdown("### 💰 Pembayaran Akhir")
-            harga_deal_total = st.number_input("Total Harga Jual Deal (Keseluruhan yg dibayar customer)", min_value=int(total_modal_semua))
+            harga_deal_total = st.number_input("Total Harga Jual (Uang Diterima dari Customer)", min_value=int(total_modal_semua))
             
-            if st.button("Proses Transaksi Bundle"):
+            if st.button("Proses Transaksi"):
                 tgl = datetime.now().strftime("%Y-%m-%d %H:%M")
                 
-                # 1. Potong Stok Utama
-                row_idx_baju = df_barang[df_barang['Kode Item'] == kode_baju].index[0] + 2
-                sheet_barang.update_cell(row_idx_baju, 4, int(item_baju['Stok'] - qty_baju))
+                # 1. Update Stok Semua Barang di Keranjang
+                for kode, q in qty_dict.items():
+                    row_idx = df_barang[df_barang['Kode Item'] == kode].index[0] + 2
+                    stok_lama = df_barang[df_barang['Kode Item'] == kode].iloc[0]['Stok']
+                    sheet_barang.update_cell(row_idx, 4, int(stok_lama - q))
                 
-                # 2. Potong Stok Tambahan
-                for p in pilihan_tambahan:
-                    kode_p = p.split(" - ")[0]
-                    item_p = df_barang[df_barang['Kode Item'] == kode_p].iloc[0]
-                    row_idx_p = df_barang[df_barang['Kode Item'] == kode_p].index[0] + 2
-                    sheet_barang.update_cell(row_idx_p, 4, int(item_p['Stok'] - qty_tambahan[kode_p]))
-                
-                # 3. Hitung Profit Total
+                # 2. Hitung Profit
                 profit = harga_deal_total - total_modal_semua
                 profit_persen = f"{(profit/total_modal_semua)*100:.1f}%" if total_modal_semua > 0 else "0%"
-                kode_tercatat = kode_baju if not pilihan_tambahan else "BUNDLE"
                 
-                # 4. Catat Penjualan (Disatukan di 1 baris)
-                sheet_penjualan.append_row([tgl, kode_tercatat, nama_lengkap_transaksi, int(total_modal_semua), int(harga_deal_total), int(qty_baju), int(harga_deal_total), int(profit), profit_persen])
+                nama_tercatat = " + ".join(rincian_nama)
+                kode_tercatat = "BUNDLE" if len(qty_dict) > 1 else list(qty_dict.keys())[0]
                 
-                st.success("Selesai! Stok Baju dan Packaging udah dipotong sesuai porsinya.")
+                # 3. Catat ke Penjualan (Qty yang masuk murni qty baju)
+                sheet_penjualan.append_row([tgl, kode_tercatat, nama_tercatat, int(total_modal_semua), int(harga_deal_total), int(qty_baju_total), int(harga_deal_total), int(profit), profit_persen])
+                
+                st.success("Selesai! Stok berkurang & tercatat akurat.")
                 st.balloons()
-        else: 
-            st.warning("Semua stok barang sedang habis.")
     else:
         st.error("Data barang masih kosong.")
 
@@ -219,7 +212,6 @@ elif choice == "Input Stok Barang":
 
 elif choice == "Input Operasional":
     st.subheader("💸 Catat Pengeluaran Murni")
-    st.info("Gunakan menu ini HANYA untuk pengeluaran yang tidak berbentuk barang fisik (Misal: Bensin kurir, Ads IG).")
     with st.form("form_ops"):
         ket = st.text_input("Keterangan Pengeluaran")
         biaya = st.number_input("Total Biaya", min_value=0)
