@@ -5,19 +5,13 @@ from google.oauth2.service_account import Credentials
 from datetime import datetime
 
 # --- SETUP KONEKSI GOOGLE SHEETS ---
-# Menggunakan st.secrets agar aman saat di-deploy (tidak perlu upload file JSON ke GitHub)
 def koneksi_sheet():
     scope = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
-    
-    # Cek apakah jalan di lokal (pakai file) atau di cloud (pakai secrets)
     if "gcp_service_account" in st.secrets:
         creds = Credentials.from_service_account_info(st.secrets["gcp_service_account"], scopes=scope)
     else:
-        # Untuk testing lokal, pastikan file kunci_rahasia.json ada di folder yang sama
         creds = Credentials.from_service_account_file("kunci_rahasia.json", scopes=scope)
-    
     client = gspread.authorize(creds)
-    # Spreadsheet ID milikmu
     return client.open_by_key("1ZDLJ8Cz09RuMtEzyJpth-lFlrenRbpYBcHWEKLcia-c")
 
 sh = koneksi_sheet()
@@ -38,11 +32,9 @@ def generate_kode(nama_barang, df_barang):
         if kunci in nama_lower:
             prefix = huruf
             break
-    
     if df_barang.empty:
         return f"{prefix}1"
-    
-    count = len(df_barang[df_barang['Kode Item'].str.startswith(prefix)])
+    count = len(df_barang[df_barang['Kode Item'].astype(str).str.startswith(prefix)])
     return f"{prefix}{count + 1}"
 
 # --- UI STREAMLIT ---
@@ -57,6 +49,20 @@ df_barang = get_all_data(sheet_barang)
 df_penjualan = get_all_data(sheet_penjualan)
 df_operasional = get_all_data(sheet_operasional)
 
+# --- FIX TIPE DATA: Memaksa data dari Sheets jadi Angka ---
+if not df_barang.empty:
+    df_barang['Harga Modal'] = pd.to_numeric(df_barang['Harga Modal'], errors='coerce').fillna(0)
+    df_barang['Stok'] = pd.to_numeric(df_barang['Stok'], errors='coerce').fillna(0)
+
+if not df_penjualan.empty:
+    df_penjualan['Harga Modal'] = pd.to_numeric(df_penjualan['Harga Modal'], errors='coerce').fillna(0)
+    df_penjualan['Qty'] = pd.to_numeric(df_penjualan['Qty'], errors='coerce').fillna(0)
+    df_penjualan['Total Penjualan'] = pd.to_numeric(df_penjualan['Total Penjualan'], errors='coerce').fillna(0)
+    df_penjualan['Profit'] = pd.to_numeric(df_penjualan['Profit'], errors='coerce').fillna(0)
+
+if not df_operasional.empty:
+    df_operasional['Biaya'] = pd.to_numeric(df_operasional['Biaya'], errors='coerce').fillna(0)
+
 if choice == "Dashboard Keuangan":
     st.subheader("📊 Laporan Real-Time (Source: Google Sheets)")
     modal_awal = 1000000
@@ -67,7 +73,6 @@ if choice == "Dashboard Keuangan":
     total_biaya_ops = df_operasional['Biaya'].sum() if not df_operasional.empty else 0
     total_profit = df_penjualan['Profit'].sum() if not df_penjualan.empty else 0
     
-    # Kalkulasi Uang Kas
     sisa_kas = modal_awal - total_aset_stok - total_hpp_laku - total_biaya_ops + total_kas_masuk
     
     c1, c2, c3, c4 = st.columns(4)
@@ -84,32 +89,34 @@ elif choice == "Kasir & Resi (Nego)":
     st.subheader("🛒 Kasir Penjualan")
     if not df_barang.empty:
         opsi = [f"{row['Kode Item']} - {row['Nama Barang']}" for _, row in df_barang.iterrows() if row['Stok'] > 0]
-        pilihan = st.selectbox("Pilih Barang Laku", opsi)
-        
-        kode = pilihan.split(" - ")[0]
-        item = df_barang[df_barang['Kode Item'] == kode].iloc[0]
-        
-        st.warning(f"Harga Modal: Rp {item['Harga Modal']:,.0f} | Stok Sisa: {item['Stok']}")
-        
-        col1, col2 = st.columns(2)
-        qty = col1.number_input("Jumlah", min_value=1, max_value=int(item['Stok']))
-        harga_deal = col2.number_input("Harga Jual Deal (Nego)", min_value=int(item['Harga Modal']))
-        
-        total = qty * harga_deal
-        profit = (harga_deal - item['Harga Modal']) * qty
-        profit_p = ((harga_deal - item['Harga Modal']) / item['Harga Modal']) * 100
-        
-        if st.button("Proses Transaksi"):
-            tgl = datetime.now().strftime("%Y-%m-%d %H:%M")
-            # 1. Update Stok di Sheet Barang
-            row_idx = df_barang[df_barang['Kode Item'] == kode].index[0] + 2
-            sheet_barang.update_cell(row_idx, 4, int(item['Stok'] - qty))
+        if opsi:
+            pilihan = st.selectbox("Pilih Barang Laku", opsi)
+            kode = pilihan.split(" - ")[0]
+            item = df_barang[df_barang['Kode Item'] == kode].iloc[0]
             
-            # 2. Catat Penjualan
-            sheet_penjualan.append_row([tgl, kode, item['Nama Barang'], item['Harga Modal'], harga_deal, qty, total, profit, f"{profit_p:.2f}%"])
+            st.warning(f"Harga Modal: Rp {item['Harga Modal']:,.0f} | Stok Sisa: {int(item['Stok'])} pcs")
             
-            st.success("Tercatat ke Google Sheets!")
-            st.balloons()
+            col1, col2 = st.columns(2)
+            qty = col1.number_input("Jumlah", min_value=1, max_value=int(item['Stok']))
+            harga_deal = col2.number_input("Harga Jual Deal (Nego)", min_value=int(item['Harga Modal']))
+            
+            total = qty * harga_deal
+            profit = (harga_deal - item['Harga Modal']) * qty
+            profit_p = ((harga_deal - item['Harga Modal']) / item['Harga Modal']) * 100 if item['Harga Modal'] > 0 else 0
+            
+            if st.button("Proses Transaksi"):
+                tgl = datetime.now().strftime("%Y-%m-%d %H:%M")
+                # Update Stok di Sheet Barang
+                row_idx = df_barang[df_barang['Kode Item'] == kode].index[0] + 2
+                sheet_barang.update_cell(row_idx, 4, int(item['Stok'] - qty))
+                
+                # Catat Penjualan
+                sheet_penjualan.append_row([tgl, kode, item['Nama Barang'], int(item['Harga Modal']), int(harga_deal), int(qty), int(total), int(profit), f"{profit_p:.2f}%"])
+                
+                st.success("Tercatat ke Google Sheets!")
+                st.balloons()
+        else:
+            st.warning("Semua stok barang sedang habis.")
     else:
         st.error("Data barang kosong.")
 
