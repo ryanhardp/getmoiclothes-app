@@ -3,6 +3,7 @@ import pandas as pd
 import gspread
 from google.oauth2.service_account import Credentials
 from datetime import datetime
+import re
 
 # --- SETUP KONEKSI GOOGLE SHEETS ---
 def koneksi_sheet():
@@ -10,6 +11,7 @@ def koneksi_sheet():
     if "gcp_service_account" in st.secrets:
         creds = Credentials.from_service_account_info(st.secrets["gcp_service_account"], scopes=scope)
     else:
+        # Untuk testing lokal
         creds = Credentials.from_service_account_file("kunci_rahasia.json", scopes=scope)
     client = gspread.authorize(creds)
     return client.open_by_key("1ZDLJ8Cz09RuMtEzyJpth-lFlrenRbpYBcHWEKLcia-c")
@@ -21,8 +23,13 @@ sheet_operasional = sh.worksheet("Operasional")
 
 # --- FUNGSI PEMBANTU ---
 def get_all_data(worksheet):
-    data = worksheet.get_all_records()
+    # Mengambil data mentah agar tidak terganggu format ribuan/Rp di Sheets
+    data = worksheet.get_all_records(value_render_option='UNFORMATTED_VALUE')
     return pd.DataFrame(data)
+
+def bersihkan_angka(kolom):
+    # Menghapus semua karakter non-angka (Rp, titik, koma, spasi)
+    return pd.to_numeric(kolom.astype(str).str.replace(r'[^\d]', '', regex=True), errors='coerce').fillna(0)
 
 def generate_kode(nama_barang, df_barang):
     kategori = {'kemeja': 'A', 'inner': 'B', 'tshirt': 'C', 'dress': 'D', 'cardigan': 'E', 'vest': 'F'}
@@ -49,19 +56,19 @@ df_barang = get_all_data(sheet_barang)
 df_penjualan = get_all_data(sheet_penjualan)
 df_operasional = get_all_data(sheet_operasional)
 
-# --- FIX TIPE DATA: Memaksa data dari Sheets jadi Angka ---
+# --- FIX TIPE DATA: Memaksa data dari Sheets jadi Angka Murni ---
 if not df_barang.empty:
-    df_barang['Harga Modal'] = pd.to_numeric(df_barang['Harga Modal'], errors='coerce').fillna(0)
-    df_barang['Stok'] = pd.to_numeric(df_barang['Stok'], errors='coerce').fillna(0)
+    df_barang['Harga Modal'] = bersihkan_angka(df_barang['Harga Modal'])
+    df_barang['Stok'] = bersihkan_angka(df_barang['Stok'])
 
 if not df_penjualan.empty:
-    df_penjualan['Harga Modal'] = pd.to_numeric(df_penjualan['Harga Modal'], errors='coerce').fillna(0)
-    df_penjualan['Qty'] = pd.to_numeric(df_penjualan['Qty'], errors='coerce').fillna(0)
-    df_penjualan['Total Penjualan'] = pd.to_numeric(df_penjualan['Total Penjualan'], errors='coerce').fillna(0)
-    df_penjualan['Profit'] = pd.to_numeric(df_penjualan['Profit'], errors='coerce').fillna(0)
+    df_penjualan['Harga Modal'] = bersihkan_angka(df_penjualan['Harga Modal'])
+    df_penjualan['Qty'] = bersihkan_angka(df_penjualan['Qty'])
+    df_penjualan['Total Penjualan'] = bersihkan_angka(df_penjualan['Total Penjualan'])
+    df_penjualan['Profit'] = bersihkan_angka(df_penjualan['Profit'])
 
 if not df_operasional.empty:
-    df_operasional['Biaya'] = pd.to_numeric(df_operasional['Biaya'], errors='coerce').fillna(0)
+    df_operasional['Biaya'] = bersihkan_angka(df_operasional['Biaya'])
 
 if choice == "Dashboard Keuangan":
     st.subheader("📊 Laporan Real-Time (Source: Google Sheets)")
