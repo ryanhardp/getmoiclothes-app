@@ -60,17 +60,27 @@ for df, cols in [(df_barang, ['Harga Modal', 'Stok']),
 st.set_page_config(page_title="GETMOICLOTHES Online", layout="wide")
 st.title("👗 GETMOICLOTHES - Full System")
 
-menu = ["Dashboard Keuangan", "Kasir & Resi (Nego)", "Input Stok Barang", "Input Operasional"]
+# MENU BARU (Ditambah Riwayat Penjualan & Riwayat Operasional)
+menu = [
+    "Dashboard Utama", 
+    "Riwayat Penjualan", 
+    "Riwayat Operasional", 
+    "Kasir & Resi (Nego)", 
+    "Input Stok Barang", 
+    "Input Operasional"
+]
 choice = st.sidebar.selectbox("Menu Utama", menu)
 
-if choice == "Dashboard Keuangan":
-    st.subheader("📊 Laporan Real-Time")
+if choice == "Dashboard Utama":
+    st.subheader("📊 Ringkasan Keuangan Global")
     modal_awal = 1000000
+    
     total_aset_stok = (df_barang['Harga Modal'] * df_barang['Stok']).sum() if 'Harga Modal' in df_barang.columns else 0
     total_kas_masuk = df_penjualan['Total Penjualan'].sum() if 'Total Penjualan' in df_penjualan.columns else 0
     total_hpp_laku = (df_penjualan['Harga Modal'] * df_penjualan['Qty']).sum() if 'Harga Modal' in df_penjualan.columns else 0
     total_biaya_ops = df_operasional['Biaya'].sum() if 'Biaya' in df_operasional.columns else 0
     total_profit = df_penjualan['Profit'].sum() if 'Profit' in df_penjualan.columns else 0
+    
     sisa_kas = modal_awal - total_aset_stok - total_hpp_laku - total_biaya_ops + total_kas_masuk
     
     c1, c2, c3, c4 = st.columns(4)
@@ -78,9 +88,40 @@ if choice == "Dashboard Keuangan":
     c2.metric("Sisa Kas Fisik", f"Rp {sisa_kas:,.0f}")
     c3.metric("Uang di Stok", f"Rp {total_aset_stok:,.0f}")
     c4.metric("Total Profit", f"Rp {total_profit:,.0f}")
+    
     st.markdown("---")
-    st.write("**Daftar Barang:**")
-    st.dataframe(df_barang, use_container_width=True)
+    st.write("**Daftar Sisa Stok Barang:**")
+    if not df_barang.empty:
+        st.dataframe(df_barang, use_container_width=True)
+    else:
+        st.info("Belum ada data barang.")
+
+elif choice == "Riwayat Penjualan":
+    st.subheader("📈 Laporan Data Penjualan")
+    if not df_penjualan.empty:
+        total_item_laku = df_penjualan['Qty'].sum() if 'Qty' in df_penjualan.columns else 0
+        total_omset = df_penjualan['Total Penjualan'].sum() if 'Total Penjualan' in df_penjualan.columns else 0
+        
+        col1, col2 = st.columns(2)
+        col1.metric("Total Item Terjual", f"{total_item_laku:,.0f} pcs")
+        col2.metric("Total Omset Masuk", f"Rp {total_omset:,.0f}")
+        
+        st.markdown("---")
+        st.dataframe(df_penjualan, use_container_width=True)
+    else:
+        st.info("Belum ada data penjualan tercatat. Transaksi dari kasir akan muncul di sini.")
+
+elif choice == "Riwayat Operasional":
+    st.subheader("💸 Laporan Biaya Operasional")
+    if not df_operasional.empty:
+        total_ops = df_operasional['Biaya'].sum() if 'Biaya' in df_operasional.columns else 0
+        
+        st.metric("Total Uang Terpakai (Non-Stok)", f"Rp {total_ops:,.0f}")
+        
+        st.markdown("---")
+        st.dataframe(df_operasional, use_container_width=True)
+    else:
+        st.info("Belum ada data pengeluaran operasional. Pengeluaran seperti plastik/bensin akan muncul di sini.")
 
 elif choice == "Kasir & Resi (Nego)":
     st.subheader("🛒 Kasir Penjualan")
@@ -90,41 +131,60 @@ elif choice == "Kasir & Resi (Nego)":
             pilihan = st.selectbox("Pilih Barang", opsi)
             kode = pilihan.split(" - ")[0]
             item = df_barang[df_barang['Kode Item'] == kode].iloc[0]
-            st.warning(f"Modal: Rp {item['Harga Modal']:,.0f} | Stok: {int(item['Stok'])}")
+            
+            st.warning(f"Modal: Rp {item['Harga Modal']:,.0f} | Stok Sisa: {int(item['Stok'])} pcs")
+            
             col1, col2 = st.columns(2)
-            qty = col1.number_input("Jumlah", min_value=1, max_value=int(item['Stok']))
-            harga_deal = col2.number_input("Harga Jual Deal", min_value=int(item['Harga Modal']))
+            qty = col1.number_input("Jumlah Beli", min_value=1, max_value=int(item['Stok']))
+            harga_deal = col2.number_input("Harga Jual Deal per Pcs", min_value=int(item['Harga Modal']))
+            
             if st.button("Proses Transaksi"):
                 tgl = datetime.now().strftime("%Y-%m-%d %H:%M")
                 row_idx = df_barang[df_barang['Kode Item'] == kode].index[0] + 2
+                
+                # Kurangi Stok
                 sheet_barang.update_cell(row_idx, 4, int(item['Stok'] - qty))
+                
+                # Hitung Total dan Profit
                 total = qty * harga_deal
                 profit = total - (item['Harga Modal'] * qty)
-                sheet_penjualan.append_row([tgl, kode, item['Nama Barang'], item['Harga Modal'], harga_deal, qty, total, profit, f"{(profit/total)*100:.1f}%" if total > 0 else "0%"])
-                st.success("Berhasil! Stok berkurang & tercatat.")
+                profit_persen = f"{(profit/total)*100:.1f}%" if total > 0 else "0%"
+                
+                # Catat ke Sheet Penjualan
+                sheet_penjualan.append_row([tgl, kode, item['Nama Barang'], int(item['Harga Modal']), int(harga_deal), int(qty), int(total), int(profit), profit_persen])
+                
+                st.success("Transaksi Berhasil! Stok berkurang & penjualan tercatat.")
                 st.balloons()
-        else: st.warning("Stok kosong.")
+        else: 
+            st.warning("Semua stok barang sedang habis.")
+    else:
+        st.error("Data barang masih kosong.")
 
 elif choice == "Input Stok Barang":
     st.subheader("📦 Tambah Stok Baru")
     with st.form("form_stok"):
         nama = st.text_input("Nama Barang")
-        h_modal = st.number_input("Harga Modal", min_value=0)
+        h_modal = st.number_input("Harga Modal per Pcs", min_value=0)
         stok_awal = st.number_input("Jumlah Stok", min_value=1)
+        
         if st.form_submit_button("Simpan Barang"):
             if nama:
                 kode_baru = generate_kode(nama, df_barang)
                 sheet_barang.append_row([kode_baru, nama, h_modal, stok_awal])
-                st.success(f"Tersimpan! Kode: {kode_baru}")
-            else: st.error("Nama barang wajib diisi.")
+                st.success(f"Tersimpan! {nama} masuk dengan Kode: {kode_baru}")
+            else: 
+                st.error("Nama barang wajib diisi.")
 
 elif choice == "Input Operasional":
-    st.subheader("💸 Pengeluaran Operasional")
+    st.subheader("💸 Catat Pengeluaran Operasional")
     with st.form("form_ops"):
-        ket = st.text_input("Keterangan (Plastik, Bensin, dll)")
+        ket = st.text_input("Keterangan (Contoh: Beli Plastik Packing, Bensin)")
         biaya = st.number_input("Total Biaya", min_value=0)
+        
         if st.form_submit_button("Catat Biaya"):
             if ket:
-                sheet_operasional.append_row([datetime.now().strftime("%Y-%m-%d %H:%M"), ket, biaya])
-                st.success("Tercatat!")
-            else: st.error("Keterangan wajib diisi.")
+                tgl = datetime.now().strftime("%Y-%m-%d %H:%M")
+                sheet_operasional.append_row([tgl, ket, biaya])
+                st.success("Pengeluaran operasional berhasil dicatat!")
+            else: 
+                st.error("Keterangan pengeluaran wajib diisi.")
