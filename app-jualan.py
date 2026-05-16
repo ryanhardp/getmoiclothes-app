@@ -71,7 +71,7 @@ if not df_operasional.empty:
     if 'Biaya' in df_operasional.columns:
         df_operasional['Biaya'] = bersihkan_angka(df_operasional['Biaya'])
 
-# --- UI STREAMLIT (AESTHETIC UPDATE) ---
+# --- UI STREAMLIT ---
 st.set_page_config(page_title="GETMOICLOTHES Online", layout="wide", page_icon="👗")
 st.title("👗 GETMOICLOTHES")
 st.markdown("*Advanced Inventory & Point of Sales*")
@@ -100,7 +100,6 @@ if choice == "📊 Dashboard Utama":
     laba_bersih = laba_kotor - total_biaya_ops
     sisa_kas = modal_awal - total_aset_stok - total_hpp_laku - total_biaya_ops + total_kas_masuk
     
-    # Kartu Metrik dengan Desain Rapi
     c1, c2, c3 = st.columns(3)
     c1.metric("Modal Awal", f"Rp {modal_awal:,.0f}")
     c2.metric("Sisa Kas Fisik di Tangan", f"Rp {sisa_kas:,.0f}")
@@ -111,19 +110,23 @@ if choice == "📊 Dashboard Utama":
     c5.metric("Operasional (Non-Stok)", f"Rp {total_biaya_ops:,.0f}")
     c6.metric("Laba Bersih (Net Profit)", f"Rp {laba_bersih:,.0f}")
     
-    # FITUR BARU: GRAFIK TREN PENJUALAN
+    # FITUR BARU PENGGANTI GRAFIK: PERINGATAN STOK MENIPIS
     st.markdown("---")
-    st.markdown("### 📈 Tren Omset Harian")
-    if not df_penjualan.empty:
-        df_chart = df_penjualan.copy()
-        # Ambil tanggalnya aja, potong jamnya biar grafik rapi
-        df_chart['Tanggal_Short'] = df_chart['Tanggal'].astype(str).str.split(' ').str[0]
-        chart_data = df_chart.groupby('Tanggal_Short')['Total Penjualan'].sum()
-        st.bar_chart(chart_data, color="#ff4b4b")
+    st.markdown("### ⚠️ Peringatan Stok Menipis")
+    if not df_barang.empty:
+        # Cari barang yang stoknya <= 2
+        df_kritis = df_barang[df_barang['Stok'] <= 2]
+        if not df_kritis.empty:
+            for _, row in df_kritis.iterrows():
+                if row['Stok'] == 0:
+                    st.error(f"❌ **SOLD OUT:** {row['Nama Barang']} (Stok: 0)")
+                else:
+                    st.warning(f"⚠️ **HAMPIR HABIS:** {row['Nama Barang']} (Sisa: {int(row['Stok'])} pcs)")
+        else:
+            st.success("✅ Aman bos! Semua stok barang masih di atas 2 pcs.")
     else:
-        st.info("Belum ada data untuk grafik.")
+        st.info("Belum ada data barang.")
 
-    # FITUR BARU: TABEL DILIPAT (EXPANDER)
     st.markdown("---")
     with st.expander("👀 Klik di sini untuk melihat Rincian Sisa Stok & Status"):
         if not df_barang.empty:
@@ -208,7 +211,6 @@ elif choice == "🛒 Kasir & Resi":
                 
                 sheet_penjualan.append_row([tgl, kode_tercatat, nama_tercatat, int(total_modal_semua), int(harga_deal_total), int(qty_baju_total), int(harga_deal_total), int(profit), profit_persen])
                 
-                # FITUR BARU: NOTIFIKASI TOAST ELEGAN
                 st.toast('Transaksi Berhasil Tersimpan!', icon='✅')
                 st.toast('Stok otomatis dikurangi.', icon='📉')
                 st.balloons()
