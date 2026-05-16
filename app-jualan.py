@@ -48,53 +48,47 @@ df_barang = get_clean_df(sheet_barang)
 df_penjualan = get_clean_df(sheet_penjualan)
 df_operasional = get_clean_df(sheet_operasional)
 
-# 1. Bersihkan Data Barang
 if not df_barang.empty:
     for col in ['Harga Modal', 'Stok']:
         if col in df_barang.columns:
             df_barang[col] = bersihkan_angka(df_barang[col])
 
-# 2. Bersihkan & REKALKULASI Data Penjualan (Self-Healing)
 if not df_penjualan.empty:
     for col in ['Harga Modal', 'Harga Jual', 'Qty', 'Total Penjualan', 'Profit']:
         if col in df_penjualan.columns:
             df_penjualan[col] = bersihkan_angka(df_penjualan[col])
             
-    # AUTO-FIX: Jika user edit manual 'Harga Jual' di Sheets, Python benerin sisanya!
     if 'Harga Jual' in df_penjualan.columns and 'Harga Modal' in df_penjualan.columns:
-        # Samakan Total Penjualan dengan Harga Jual yang baru diedit
         df_penjualan['Total Penjualan'] = df_penjualan['Harga Jual']
-        # Hitung Ulang Profit
         df_penjualan['Profit'] = df_penjualan['Total Penjualan'] - df_penjualan['Harga Modal']
-        
-        # Hitung Ulang %Profit
         def hitung_persen(row):
             if row['Harga Modal'] > 0:
                 return f"{(row['Profit'] / row['Harga Modal']) * 100:.1f}%"
             return "0%"
         df_penjualan['%Profit'] = df_penjualan.apply(hitung_persen, axis=1)
 
-# 3. Bersihkan Data Operasional
 if not df_operasional.empty:
     if 'Biaya' in df_operasional.columns:
         df_operasional['Biaya'] = bersihkan_angka(df_operasional['Biaya'])
 
-# --- UI STREAMLIT ---
-st.set_page_config(page_title="GETMOICLOTHES Online", layout="wide")
-st.title("👗 GETMOICLOTHES - Advanced Cart System")
+# --- UI STREAMLIT (AESTHETIC UPDATE) ---
+st.set_page_config(page_title="GETMOICLOTHES Online", layout="wide", page_icon="👗")
+st.title("👗 GETMOICLOTHES")
+st.markdown("*Advanced Inventory & Point of Sales*")
+st.markdown("---")
 
 menu = [
-    "Dashboard Utama", 
-    "Riwayat Penjualan", 
-    "Riwayat Operasional", 
-    "Kasir & Resi (Nego)", 
-    "Input Stok Barang", 
-    "Input Operasional"
+    "📊 Dashboard Utama", 
+    "🛒 Kasir & Resi", 
+    "📈 Riwayat Penjualan", 
+    "💸 Riwayat Operasional", 
+    "📦 Input Stok Barang", 
+    "📝 Input Operasional"
 ]
-choice = st.sidebar.selectbox("Menu Utama", menu)
+choice = st.sidebar.radio("Navigasi Menu", menu)
 
-if choice == "Dashboard Utama":
-    st.subheader("📊 Ringkasan Keuangan Global")
+if choice == "📊 Dashboard Utama":
+    st.subheader("Ringkasan Keuangan Global")
     modal_awal = 1000000
     
     total_aset_stok = (df_barang['Harga Modal'] * df_barang['Stok']).sum() if 'Harga Modal' in df_barang.columns else 0
@@ -106,78 +100,59 @@ if choice == "Dashboard Utama":
     laba_bersih = laba_kotor - total_biaya_ops
     sisa_kas = modal_awal - total_aset_stok - total_hpp_laku - total_biaya_ops + total_kas_masuk
     
+    # Kartu Metrik dengan Desain Rapi
     c1, c2, c3 = st.columns(3)
     c1.metric("Modal Awal", f"Rp {modal_awal:,.0f}")
     c2.metric("Sisa Kas Fisik di Tangan", f"Rp {sisa_kas:,.0f}")
     c3.metric("Uang Tertahan di Stok", f"Rp {total_aset_stok:,.0f}")
     
-    st.markdown("---")
-    st.markdown("### 💰 Analisis Profit & Operasional")
     c4, c5, c6 = st.columns(3)
     c4.metric("Laba Kotor (Untung Transaksi)", f"Rp {laba_kotor:,.0f}")
     c5.metric("Operasional (Non-Stok)", f"Rp {total_biaya_ops:,.0f}")
     c6.metric("Laba Bersih (Net Profit)", f"Rp {laba_bersih:,.0f}")
     
+    # FITUR BARU: GRAFIK TREN PENJUALAN
     st.markdown("---")
-    st.write("**Daftar Status & Sisa Stok Barang:**")
-    if not df_barang.empty:
-        df_display = df_barang.copy()
-        df_display['Status'] = df_display['Stok'].apply(lambda x: "✅ Ready" if x > 0 else "❌ Sold Out")
-        
-        kolom_urutan = ['Kode Item', 'Nama Barang', 'Harga Modal', 'Stok', 'Status']
-        kolom_ada = [k for k in kolom_urutan if k in df_display.columns]
-        
-        st.dataframe(
-            df_display[kolom_ada], 
-            use_container_width=True, 
-            hide_index=True, 
-            column_config={
-                "Kode Item": st.column_config.TextColumn(width="small"),
-                "Stok": st.column_config.NumberColumn(width="small"),
-                "Status": st.column_config.TextColumn(width="small"),
-                "Harga Modal": st.column_config.NumberColumn(format="Rp %d")
-            }
-        )
-    else:
-        st.info("Belum ada data barang.")
-
-elif choice == "Riwayat Penjualan":
-    st.subheader("📈 Laporan Data Penjualan")
+    st.markdown("### 📈 Tren Omset Harian")
     if not df_penjualan.empty:
-        col1, col2 = st.columns(2)
-        col1.metric("Total Baju Terjual (Qty)", f"{df_penjualan['Qty'].sum():,.0f} pcs")
-        col2.metric("Total Omset Masuk", f"Rp {df_penjualan['Total Penjualan'].sum():,.0f}")
-        
-        st.dataframe(
-            df_penjualan, 
-            use_container_width=True, 
-            hide_index=True,
-            column_config={
-                "Kode Item": st.column_config.TextColumn(width="small"),
-                "Qty": st.column_config.NumberColumn(width="small"),
-                "Harga Modal": st.column_config.NumberColumn(format="Rp %d"),
-                "Harga Jual": st.column_config.NumberColumn(format="Rp %d"),
-                "Total Penjualan": st.column_config.NumberColumn(format="Rp %d"),
-                "Profit": st.column_config.NumberColumn(format="Rp %d")
-            }
-        )
+        df_chart = df_penjualan.copy()
+        # Ambil tanggalnya aja, potong jamnya biar grafik rapi
+        df_chart['Tanggal_Short'] = df_chart['Tanggal'].astype(str).str.split(' ').str[0]
+        chart_data = df_chart.groupby('Tanggal_Short')['Total Penjualan'].sum()
+        st.bar_chart(chart_data, color="#ff4b4b")
     else:
-        st.info("Belum ada data penjualan.")
+        st.info("Belum ada data untuk grafik.")
 
-elif choice == "Riwayat Operasional":
-    st.subheader("💸 Laporan Biaya Operasional")
-    if not df_operasional.empty:
-        st.metric("Total Uang Terpakai (Non-Stok)", f"Rp {df_operasional['Biaya'].sum():,.0f}")
-        st.dataframe(df_operasional, use_container_width=True, hide_index=True)
-    else:
-        st.info("Belum ada data pengeluaran operasional.")
+    # FITUR BARU: TABEL DILIPAT (EXPANDER)
+    st.markdown("---")
+    with st.expander("👀 Klik di sini untuk melihat Rincian Sisa Stok & Status"):
+        if not df_barang.empty:
+            df_display = df_barang.copy()
+            df_display['Status'] = df_display['Stok'].apply(lambda x: "✅ Ready" if x > 0 else "❌ Sold Out")
+            
+            kolom_urutan = ['Kode Item', 'Nama Barang', 'Harga Modal', 'Stok', 'Status']
+            kolom_ada = [k for k in kolom_urutan if k in df_display.columns]
+            
+            st.dataframe(
+                df_display[kolom_ada], 
+                use_container_width=True, 
+                hide_index=True, 
+                column_config={
+                    "Kode Item": st.column_config.TextColumn(width="small"),
+                    "Stok": st.column_config.NumberColumn(width="small"),
+                    "Status": st.column_config.TextColumn(width="small"),
+                    "Harga Modal": st.column_config.NumberColumn(format="Rp %d")
+                }
+            )
+        else:
+            st.info("Belum ada data barang.")
 
-elif choice == "Kasir & Resi (Nego)":
-    st.subheader("🛒 Kasir Keranjang Belanja")
+elif choice == "🛒 Kasir & Resi":
+    st.subheader("Kasir Keranjang Belanja")
     if not df_barang.empty:
         opsi_semua = [f"{row['Kode Item']} - {row['Nama Barang']}" for _, row in df_barang.iterrows() if row['Stok'] > 0]
         
-        pilihan_keranjang = st.multiselect("Pilih SEMUA Barang (Baju & Packaging) yang mau di-checkout:", opsi_semua, placeholder="Pilih baju, celana, plastik, print resi...")
+        pilihan_keranjang = st.multiselect("Pilih SEMUA Barang (Baju & Packaging) yang mau di-checkout:", opsi_semua, placeholder="Cari barang disini...")
         
         if pilihan_keranjang:
             st.markdown("### 📝 Atur Jumlah (Qty)")
@@ -213,15 +188,11 @@ elif choice == "Kasir & Resi (Nego)":
             total_modal_semua = total_modal_baju + total_modal_pack
             
             st.markdown("---")
-            st.markdown("### 💡 Rincian Modal (HPP)")
-            st.info(f"👕 **Modal Baju ({qty_baju_total} pcs):** Rp {total_modal_baju:,.0f} \n\n"
-                    f"📦 **Modal Packaging/Resi:** Rp {total_modal_pack:,.0f} \n\n"
-                    f"**= TOTAL MODAL TRANSAKSI: Rp {total_modal_semua:,.0f}**")
+            st.info(f"💡 **TOTAL MODAL (HPP): Rp {total_modal_semua:,.0f}** \n *(Baju: Rp {total_modal_baju:,.0f} | Packaging: Rp {total_modal_pack:,.0f})*")
             
-            st.markdown("### 💰 Pembayaran Akhir")
-            harga_deal_total = st.number_input("Total Harga Jual (Uang Diterima dari Customer)", min_value=int(total_modal_semua))
+            harga_deal_total = st.number_input("💰 Total Harga Jual (Uang Diterima)", min_value=int(total_modal_semua))
             
-            if st.button("Proses Transaksi"):
+            if st.button("Proses Transaksi", type="primary"):
                 tgl = datetime.now().strftime("%Y-%m-%d %H:%M")
                 
                 for kode, q in qty_dict.items():
@@ -237,15 +208,48 @@ elif choice == "Kasir & Resi (Nego)":
                 
                 sheet_penjualan.append_row([tgl, kode_tercatat, nama_tercatat, int(total_modal_semua), int(harga_deal_total), int(qty_baju_total), int(harga_deal_total), int(profit), profit_persen])
                 
-                st.success("Selesai! Stok berkurang & tercatat akurat.")
+                # FITUR BARU: NOTIFIKASI TOAST ELEGAN
+                st.toast('Transaksi Berhasil Tersimpan!', icon='✅')
+                st.toast('Stok otomatis dikurangi.', icon='📉')
                 st.balloons()
         else:
             st.info("Pilih barang di atas untuk mulai transaksi.")
     else:
         st.error("Data barang masih kosong.")
 
-elif choice == "Input Stok Barang":
-    st.subheader("📦 Tambah Stok Baru (Termasuk Plastik/Resi)")
+elif choice == "📈 Riwayat Penjualan":
+    st.subheader("Laporan Data Penjualan")
+    if not df_penjualan.empty:
+        col1, col2 = st.columns(2)
+        col1.metric("Total Baju Terjual (Qty)", f"{df_penjualan['Qty'].sum():,.0f} pcs")
+        col2.metric("Total Omset Masuk", f"Rp {df_penjualan['Total Penjualan'].sum():,.0f}")
+        
+        st.dataframe(
+            df_penjualan, 
+            use_container_width=True, 
+            hide_index=True,
+            column_config={
+                "Kode Item": st.column_config.TextColumn(width="small"),
+                "Qty": st.column_config.NumberColumn(width="small"),
+                "Harga Modal": st.column_config.NumberColumn(format="Rp %d"),
+                "Harga Jual": st.column_config.NumberColumn(format="Rp %d"),
+                "Total Penjualan": st.column_config.NumberColumn(format="Rp %d"),
+                "Profit": st.column_config.NumberColumn(format="Rp %d")
+            }
+        )
+    else:
+        st.info("Belum ada data penjualan.")
+
+elif choice == "💸 Riwayat Operasional":
+    st.subheader("Laporan Biaya Operasional")
+    if not df_operasional.empty:
+        st.metric("Total Uang Terpakai (Non-Stok)", f"Rp {df_operasional['Biaya'].sum():,.0f}")
+        st.dataframe(df_operasional, use_container_width=True, hide_index=True)
+    else:
+        st.info("Belum ada data pengeluaran operasional.")
+
+elif choice == "📦 Input Stok Barang":
+    st.subheader("Tambah Stok Baru")
     with st.form("form_stok"):
         nama = st.text_input("Nama Barang / Packaging")
         h_modal = st.number_input("Harga Modal per Pcs", min_value=0)
@@ -255,20 +259,20 @@ elif choice == "Input Stok Barang":
             if nama:
                 kode_baru = generate_kode(nama, df_barang)
                 sheet_barang.append_row([kode_baru, nama, h_modal, stok_awal])
-                st.success(f"Tersimpan! {nama} masuk dengan Kode: {kode_baru}")
+                st.toast(f'{nama} masuk dengan Kode: {kode_baru}', icon='📦')
             else: 
                 st.error("Nama wajib diisi.")
 
-elif choice == "Input Operasional":
-    st.subheader("💸 Catat Pengeluaran Murni")
+elif choice == "📝 Input Operasional":
+    st.subheader("Catat Pengeluaran Murni")
     with st.form("form_ops"):
-        ket = st.text_input("Keterangan Pengeluaran")
+        ket = st.text_input("Keterangan Pengeluaran (Bensin, Ads, dll)")
         biaya = st.number_input("Total Biaya", min_value=0)
         
         if st.form_submit_button("Catat Biaya"):
             if ket:
                 tgl = datetime.now().strftime("%Y-%m-%d %H:%M")
                 sheet_operasional.append_row([tgl, ket, biaya])
-                st.success("Pengeluaran operasional berhasil dicatat!")
+                st.toast('Pengeluaran berhasil dicatat!', icon='💸')
             else: 
                 st.error("Keterangan pengeluaran wajib diisi.")
