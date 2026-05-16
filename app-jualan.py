@@ -96,9 +96,19 @@ if choice == "Dashboard Utama":
     c6.metric("Laba Bersih (Net Profit)", f"Rp {laba_bersih:,.0f}")
     
     st.markdown("---")
-    st.write("**Daftar Sisa Stok Barang & Packaging:**")
+    st.write("**Daftar Status & Sisa Stok Barang:**")
     if not df_barang.empty:
-        st.dataframe(df_barang, use_container_width=True)
+        # Tambahan Fitur: Kolom Status Ready/Sold Out
+        df_display = df_barang.copy()
+        df_display['Status'] = df_display['Stok'].apply(lambda x: "✅ Ready" if x > 0 else "❌ Sold Out")
+        
+        # Susun urutan kolom biar enak dibaca
+        kolom_urutan = ['Kode Item', 'Nama Barang', 'Harga Modal', 'Stok', 'Status']
+        kolom_ada = [k for k in kolom_urutan if k in df_display.columns]
+        
+        st.dataframe(df_display[kolom_ada], use_container_width=True)
+    else:
+        st.info("Belum ada data barang.")
 
 elif choice == "Riwayat Penjualan":
     st.subheader("📈 Laporan Data Penjualan")
@@ -112,6 +122,7 @@ elif choice == "Riwayat Penjualan":
 
 elif choice == "Riwayat Operasional":
     st.subheader("💸 Laporan Biaya Operasional")
+    st.warning("Catatan: Biaya packaging/resi otomatis masuk ke Modal Penjualan per transaksi.")
     if not df_operasional.empty:
         st.metric("Total Uang Terpakai (Non-Stok)", f"Rp {df_operasional['Biaya'].sum():,.0f}")
         st.dataframe(df_operasional, use_container_width=True)
@@ -123,7 +134,6 @@ elif choice == "Kasir & Resi (Nego)":
     if not df_barang.empty:
         opsi_semua = [f"{row['Kode Item']} - {row['Nama Barang']}" for _, row in df_barang.iterrows() if row['Stok'] > 0]
         
-        # SATU KOTAK UNTUK SEMUA PILIHAN
         pilihan_keranjang = st.multiselect("Pilih SEMUA Barang (Baju & Packaging) yang mau di-checkout:", opsi_semua, placeholder="Pilih baju, celana, plastik, print resi...")
         
         if pilihan_keranjang:
@@ -136,12 +146,10 @@ elif choice == "Kasir & Resi (Nego)":
             qty_baju_total = 0
             rincian_nama = []
             
-            # Bikin input Qty & Hitung Modal Langsung
             for idx, p in enumerate(pilihan_keranjang):
                 kode = p.split(" - ")[0]
                 item = df_barang[df_barang['Kode Item'] == kode].iloc[0]
                 
-                # Tampilan selang-seling biar rapi
                 if idx % 2 == 0:
                     qty = col_q1.number_input(f"📦 Qty: {item['Nama Barang']}", min_value=1, max_value=int(item['Stok']), value=1)
                 else:
@@ -151,14 +159,13 @@ elif choice == "Kasir & Resi (Nego)":
                 sub_modal = item['Harga Modal'] * qty
                 rincian_nama.append(f"{qty}x {item['Nama Barang']}")
                 
-                # Deteksi otomatis: Apakah ini packaging? (Kode depan P atau ada kata plastik/resi/print)
                 is_packaging = kode.startswith('P') or any(k in item['Nama Barang'].lower() for k in ['plastik', 'print', 'resi', 'polymailer'])
                 
                 if is_packaging:
                     total_modal_pack += sub_modal
                 else:
                     total_modal_baju += sub_modal
-                    qty_baju_total += qty  # Ini yang bakal dihitung sebagai Qty Penjualan di Sheets!
+                    qty_baju_total += qty  
             
             total_modal_semua = total_modal_baju + total_modal_pack
             
@@ -174,20 +181,19 @@ elif choice == "Kasir & Resi (Nego)":
             if st.button("Proses Transaksi"):
                 tgl = datetime.now().strftime("%Y-%m-%d %H:%M")
                 
-                # 1. Update Stok Semua Barang di Keranjang
                 for kode, q in qty_dict.items():
                     row_idx = df_barang[df_barang['Kode Item'] == kode].index[0] + 2
                     stok_lama = df_barang[df_barang['Kode Item'] == kode].iloc[0]['Stok']
                     sheet_barang.update_cell(row_idx, 4, int(stok_lama - q))
                 
-                # 2. Hitung Profit
                 profit = harga_deal_total - total_modal_semua
                 profit_persen = f"{(profit/total_modal_semua)*100:.1f}%" if total_modal_semua > 0 else "0%"
                 
                 nama_tercatat = " + ".join(rincian_nama)
-                kode_tercatat = "BUNDLE" if len(qty_dict) > 1 else list(qty_dict.keys())[0]
                 
-                # 3. Catat ke Penjualan (Qty yang masuk murni qty baju)
+                # FITUR BARU: Menggabungkan kode item (Contoh: A1 + P1 + P2)
+                kode_tercatat = " + ".join(qty_dict.keys())
+                
                 sheet_penjualan.append_row([tgl, kode_tercatat, nama_tercatat, int(total_modal_semua), int(harga_deal_total), int(qty_baju_total), int(harga_deal_total), int(profit), profit_persen])
                 
                 st.success("Selesai! Stok berkurang & tercatat akurat.")
