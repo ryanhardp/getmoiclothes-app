@@ -110,22 +110,27 @@ if choice == "📊 Dashboard Utama":
     c5.metric("Operasional (Non-Stok)", f"Rp {total_biaya_ops:,.0f}")
     c6.metric("Laba Bersih (Net Profit)", f"Rp {laba_bersih:,.0f}")
     
-    # FITUR BARU PENGGANTI GRAFIK: PERINGATAN STOK MENIPIS
+    # FITUR BARU: 5 TRANSAKSI TERAKHIR
     st.markdown("---")
-    st.markdown("### ⚠️ Peringatan Stok Menipis")
-    if not df_barang.empty:
-        # Cari barang yang stoknya <= 2
-        df_kritis = df_barang[df_barang['Stok'] <= 2]
-        if not df_kritis.empty:
-            for _, row in df_kritis.iterrows():
-                if row['Stok'] == 0:
-                    st.error(f"❌ **SOLD OUT:** {row['Nama Barang']} (Stok: 0)")
-                else:
-                    st.warning(f"⚠️ **HAMPIR HABIS:** {row['Nama Barang']} (Sisa: {int(row['Stok'])} pcs)")
-        else:
-            st.success("✅ Aman bos! Semua stok barang masih di atas 2 pcs.")
+    st.markdown("### 🛍️ 5 Transaksi Terakhir")
+    if not df_penjualan.empty:
+        # Ambil 5 data paling bawah dari Google Sheets, lalu balik posisinya (terbaru di atas)
+        df_recent = df_penjualan.tail(5).iloc[::-1].copy()
+        
+        kolom_penting = ['Tanggal', 'Nama Barang', 'Total Penjualan', 'Profit']
+        kolom_ada = [k for k in kolom_penting if k in df_recent.columns]
+        
+        st.dataframe(
+            df_recent[kolom_ada], 
+            use_container_width=True, 
+            hide_index=True, 
+            column_config={
+                "Total Penjualan": st.column_config.NumberColumn(format="Rp %d"),
+                "Profit": st.column_config.NumberColumn(format="Rp %d")
+            }
+        )
     else:
-        st.info("Belum ada data barang.")
+        st.info("Belum ada transaksi pecah telor nih bos.")
 
     st.markdown("---")
     with st.expander("👀 Klik di sini untuk melihat Rincian Sisa Stok & Status"):
