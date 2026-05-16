@@ -86,7 +86,7 @@ if choice == "Dashboard Utama":
     c1, c2, c3 = st.columns(3)
     c1.metric("Modal Awal", f"Rp {modal_awal:,.0f}")
     c2.metric("Sisa Kas Fisik di Tangan", f"Rp {sisa_kas:,.0f}")
-    c3.metric("Uang Tertahan di Stok (Baju+Pack)", f"Rp {total_aset_stok:,.0f}")
+    c3.metric("Uang Tertahan di Stok", f"Rp {total_aset_stok:,.0f}")
     
     st.markdown("---")
     st.markdown("### 💰 Analisis Profit & Operasional")
@@ -98,15 +98,24 @@ if choice == "Dashboard Utama":
     st.markdown("---")
     st.write("**Daftar Status & Sisa Stok Barang:**")
     if not df_barang.empty:
-        # Tambahan Fitur: Kolom Status Ready/Sold Out
         df_display = df_barang.copy()
         df_display['Status'] = df_display['Stok'].apply(lambda x: "✅ Ready" if x > 0 else "❌ Sold Out")
         
-        # Susun urutan kolom biar enak dibaca
         kolom_urutan = ['Kode Item', 'Nama Barang', 'Harga Modal', 'Stok', 'Status']
         kolom_ada = [k for k in kolom_urutan if k in df_display.columns]
         
-        st.dataframe(df_display[kolom_ada], use_container_width=True)
+        # FITUR BARU: Tabel dirampingkan, Index dihapus biar hemat ruang
+        st.dataframe(
+            df_display[kolom_ada], 
+            use_container_width=True, 
+            hide_index=True, 
+            column_config={
+                "Kode Item": st.column_config.TextColumn(width="small"),
+                "Stok": st.column_config.NumberColumn(width="small"),
+                "Status": st.column_config.TextColumn(width="small"),
+                "Harga Modal": st.column_config.NumberColumn(format="Rp %d")
+            }
+        )
     else:
         st.info("Belum ada data barang.")
 
@@ -116,16 +125,29 @@ elif choice == "Riwayat Penjualan":
         col1, col2 = st.columns(2)
         col1.metric("Total Baju Terjual (Qty)", f"{df_penjualan['Qty'].sum():,.0f} pcs")
         col2.metric("Total Omset Masuk", f"Rp {df_penjualan['Total Penjualan'].sum():,.0f}")
-        st.dataframe(df_penjualan, use_container_width=True)
+        
+        # FITUR BARU: Merapikan tabel riwayat penjualan juga
+        st.dataframe(
+            df_penjualan, 
+            use_container_width=True, 
+            hide_index=True,
+            column_config={
+                "Kode Item": st.column_config.TextColumn(width="small"),
+                "Qty": st.column_config.NumberColumn(width="small"),
+                "Harga Modal": st.column_config.NumberColumn(format="Rp %d"),
+                "Harga Jual": st.column_config.NumberColumn(format="Rp %d"),
+                "Total Penjualan": st.column_config.NumberColumn(format="Rp %d"),
+                "Profit": st.column_config.NumberColumn(format="Rp %d")
+            }
+        )
     else:
         st.info("Belum ada data penjualan.")
 
 elif choice == "Riwayat Operasional":
     st.subheader("💸 Laporan Biaya Operasional")
-    st.warning("Catatan: Biaya packaging/resi otomatis masuk ke Modal Penjualan per transaksi.")
     if not df_operasional.empty:
         st.metric("Total Uang Terpakai (Non-Stok)", f"Rp {df_operasional['Biaya'].sum():,.0f}")
-        st.dataframe(df_operasional, use_container_width=True)
+        st.dataframe(df_operasional, use_container_width=True, hide_index=True)
     else:
         st.info("Belum ada data pengeluaran operasional.")
 
@@ -190,14 +212,14 @@ elif choice == "Kasir & Resi (Nego)":
                 profit_persen = f"{(profit/total_modal_semua)*100:.1f}%" if total_modal_semua > 0 else "0%"
                 
                 nama_tercatat = " + ".join(rincian_nama)
-                
-                # FITUR BARU: Menggabungkan kode item (Contoh: A1 + P1 + P2)
                 kode_tercatat = " + ".join(qty_dict.keys())
                 
                 sheet_penjualan.append_row([tgl, kode_tercatat, nama_tercatat, int(total_modal_semua), int(harga_deal_total), int(qty_baju_total), int(harga_deal_total), int(profit), profit_persen])
                 
                 st.success("Selesai! Stok berkurang & tercatat akurat.")
                 st.balloons()
+        else:
+            st.info("Pilih barang di atas untuk mulai transaksi.")
     else:
         st.error("Data barang masih kosong.")
 
