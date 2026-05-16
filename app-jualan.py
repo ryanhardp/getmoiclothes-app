@@ -43,18 +43,41 @@ def generate_kode(nama_barang, df_barang):
     count = len(df_barang[df_barang['Kode Item'].astype(str).str.startswith(prefix)])
     return f"{prefix}{count + 1}"
 
-# --- LOAD & CLEAN DATA ---
+# --- LOAD, CLEAN & AUTO-RECALCULATE DATA ---
 df_barang = get_clean_df(sheet_barang)
 df_penjualan = get_clean_df(sheet_penjualan)
 df_operasional = get_clean_df(sheet_operasional)
 
-for df, cols in [(df_barang, ['Harga Modal', 'Stok']), 
-                 (df_penjualan, ['Harga Modal', 'Qty', 'Total Penjualan', 'Profit']),
-                 (df_operasional, ['Biaya'])]:
-    if not df.empty:
-        for col in cols:
-            if col in df.columns:
-                df[col] = bersihkan_angka(df[col])
+# 1. Bersihkan Data Barang
+if not df_barang.empty:
+    for col in ['Harga Modal', 'Stok']:
+        if col in df_barang.columns:
+            df_barang[col] = bersihkan_angka(df_barang[col])
+
+# 2. Bersihkan & REKALKULASI Data Penjualan (Self-Healing)
+if not df_penjualan.empty:
+    for col in ['Harga Modal', 'Harga Jual', 'Qty', 'Total Penjualan', 'Profit']:
+        if col in df_penjualan.columns:
+            df_penjualan[col] = bersihkan_angka(df_penjualan[col])
+            
+    # AUTO-FIX: Jika user edit manual 'Harga Jual' di Sheets, Python benerin sisanya!
+    if 'Harga Jual' in df_penjualan.columns and 'Harga Modal' in df_penjualan.columns:
+        # Samakan Total Penjualan dengan Harga Jual yang baru diedit
+        df_penjualan['Total Penjualan'] = df_penjualan['Harga Jual']
+        # Hitung Ulang Profit
+        df_penjualan['Profit'] = df_penjualan['Total Penjualan'] - df_penjualan['Harga Modal']
+        
+        # Hitung Ulang %Profit
+        def hitung_persen(row):
+            if row['Harga Modal'] > 0:
+                return f"{(row['Profit'] / row['Harga Modal']) * 100:.1f}%"
+            return "0%"
+        df_penjualan['%Profit'] = df_penjualan.apply(hitung_persen, axis=1)
+
+# 3. Bersihkan Data Operasional
+if not df_operasional.empty:
+    if 'Biaya' in df_operasional.columns:
+        df_operasional['Biaya'] = bersihkan_angka(df_operasional['Biaya'])
 
 # --- UI STREAMLIT ---
 st.set_page_config(page_title="GETMOICLOTHES Online", layout="wide")
@@ -104,7 +127,6 @@ if choice == "Dashboard Utama":
         kolom_urutan = ['Kode Item', 'Nama Barang', 'Harga Modal', 'Stok', 'Status']
         kolom_ada = [k for k in kolom_urutan if k in df_display.columns]
         
-        # FITUR BARU: Tabel dirampingkan, Index dihapus biar hemat ruang
         st.dataframe(
             df_display[kolom_ada], 
             use_container_width=True, 
@@ -126,7 +148,6 @@ elif choice == "Riwayat Penjualan":
         col1.metric("Total Baju Terjual (Qty)", f"{df_penjualan['Qty'].sum():,.0f} pcs")
         col2.metric("Total Omset Masuk", f"Rp {df_penjualan['Total Penjualan'].sum():,.0f}")
         
-        # FITUR BARU: Merapikan tabel riwayat penjualan juga
         st.dataframe(
             df_penjualan, 
             use_container_width=True, 
