@@ -89,6 +89,7 @@ choice = st.sidebar.radio("Navigasi Menu", menu)
 
 if choice == "📊 Dashboard Utama":
     st.subheader("Ringkasan Keuangan Global")
+    # MODAL AWAL SUDAH DIUPDATE JADI 700.000
     modal_awal = 700000
     
     total_aset_stok = (df_barang['Harga Modal'] * df_barang['Stok']).sum() if 'Harga Modal' in df_barang.columns else 0
@@ -115,7 +116,6 @@ if choice == "📊 Dashboard Utama":
     if not df_penjualan.empty:
         df_recent = df_penjualan.tail(5).iloc[::-1].copy()
         
-        # FITUR UPDATE: Ubah 'Nama Barang' jadi 'Kode Item', 'Tanggal' dihapus
         kolom_penting = ['Kode Item', 'Total Penjualan', 'Profit']
         kolom_ada = [k for k in kolom_penting if k in df_recent.columns]
         
@@ -136,10 +136,7 @@ if choice == "📊 Dashboard Utama":
     with st.expander("👀 Klik di sini untuk melihat Rincian Sisa Stok & Status"):
         if not df_barang.empty:
             df_display = df_barang.copy()
-            
-            # FITUR UPDATE: Urutkan berdasarkan Stok (Yang 1/Ready di atas, 0/Sold Out di bawah)
             df_display = df_display.sort_values(by='Stok', ascending=False)
-            
             df_display['Status'] = df_display['Stok'].apply(lambda x: "✅ Ready" if x > 0 else "❌ Sold Out")
             
             kolom_urutan = ['Kode Item', 'Nama Barang', 'Harga Modal', 'Stok', 'Status']
@@ -204,7 +201,6 @@ elif choice == "🛒 Kasir & Resi":
             
             harga_deal_total = st.number_input("💰 Total Harga Jual (Uang Diterima)", min_value=int(total_modal_semua))
             
-            # FITUR UPDATE: Pilihan Metode Pembayaran
             st.markdown("### 💳 Metode Pembayaran")
             metode_payment = st.selectbox("Pilih Bank / Platform:", ["Transfer BCA", "Transfer Seabank", "Full Shopee", "Cash / Lainnya"])
             
@@ -220,7 +216,6 @@ elif choice == "🛒 Kasir & Resi":
                 profit = harga_deal_total - total_modal_semua
                 profit_persen = f"{(profit/total_modal_semua)*100:.1f}%" if total_modal_semua > 0 else "0%"
                 
-                # Menyelipkan metode pembayaran ke dalam Nama Barang agar terekam di sheet
                 nama_tercatat = " + ".join(rincian_nama) + f" [{metode_payment}]"
                 kode_tercatat = " + ".join(qty_dict.keys())
                 
@@ -241,16 +236,27 @@ elif choice == "📈 Riwayat Penjualan":
         col1.metric("Total Baju Terjual (Qty)", f"{df_penjualan['Qty'].sum():,.0f} pcs")
         col2.metric("Total Omset Masuk", f"Rp {df_penjualan['Total Penjualan'].sum():,.0f}")
         
+        # --- PYTHON MAGIC START ---
+        # Tarik metode pembayaran dari dalam kurung siku di Nama Barang
+        if 'Nama Barang' in df_penjualan.columns:
+            df_penjualan['Payment'] = df_penjualan['Nama Barang'].astype(str).str.extract(r'\[(.*?)\]')
+            # Kalau ada data lama yang belum pakai metode payment, tulis "Belum Tercatat"
+            df_penjualan['Payment'] = df_penjualan['Payment'].fillna('Lainnya')
+        
+        # Pilih kolom yang mau ditampilin (Tanggal, Qty, Nama Barang di-SKIP)
+        kolom_tampil = ['Kode Item', 'Harga Modal', 'Harga Jual', 'Payment', 'Profit', '%Profit']
+        kolom_ada = [k for k in kolom_tampil if k in df_penjualan.columns]
+        # --- PYTHON MAGIC END ---
+        
         st.dataframe(
-            df_penjualan, 
+            df_penjualan[kolom_ada], 
             use_container_width=True, 
             hide_index=True,
             column_config={
-                "Kode Item": st.column_config.TextColumn(width="small"),
-                "Qty": st.column_config.NumberColumn(width="small"),
+                "Kode Item": st.column_config.TextColumn("Kode", width="small"),
                 "Harga Modal": st.column_config.NumberColumn(format="Rp %d"),
                 "Harga Jual": st.column_config.NumberColumn(format="Rp %d"),
-                "Total Penjualan": st.column_config.NumberColumn(format="Rp %d"),
+                "Payment": st.column_config.TextColumn("Payment", width="medium"),
                 "Profit": st.column_config.NumberColumn(format="Rp %d")
             }
         )
