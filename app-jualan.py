@@ -89,7 +89,6 @@ choice = st.sidebar.radio("Navigasi Menu", menu)
 
 if choice == "📊 Dashboard Utama":
     st.subheader("Ringkasan Keuangan Global")
-    # MODAL AWAL SUDAH DIUPDATE JADI 700.000
     modal_awal = 700000
     
     total_aset_stok = (df_barang['Harga Modal'] * df_barang['Stok']).sum() if 'Harga Modal' in df_barang.columns else 0
@@ -232,24 +231,26 @@ elif choice == "🛒 Kasir & Resi":
 elif choice == "📈 Riwayat Penjualan":
     st.subheader("Laporan Data Penjualan")
     if not df_penjualan.empty:
-        col1, col2 = st.columns(2)
+        # FITUR UPDATE: Tambah metrik 3 buat Total Profit
+        col1, col2, col3 = st.columns(3)
         col1.metric("Total Baju Terjual (Qty)", f"{df_penjualan['Qty'].sum():,.0f} pcs")
         col2.metric("Total Omset Masuk", f"Rp {df_penjualan['Total Penjualan'].sum():,.0f}")
+        col3.metric("Total Untung (Profit)", f"Rp {df_penjualan['Profit'].sum():,.0f}")
         
-        # --- PYTHON MAGIC START ---
-        # Tarik metode pembayaran dari dalam kurung siku di Nama Barang
-        if 'Nama Barang' in df_penjualan.columns:
-            df_penjualan['Payment'] = df_penjualan['Nama Barang'].astype(str).str.extract(r'\[(.*?)\]')
-            # Kalau ada data lama yang belum pakai metode payment, tulis "Belum Tercatat"
-            df_penjualan['Payment'] = df_penjualan['Payment'].fillna('Lainnya')
+        # FITUR UPDATE: Puter urutan dataframe jadi yang terbaru di atas
+        df_display_penjualan = df_penjualan.copy()
+        df_display_penjualan = df_display_penjualan.iloc[::-1]
         
-        # Pilih kolom yang mau ditampilin (Tanggal, Qty, Nama Barang di-SKIP)
+        # Tarik metode pembayaran dari dalam kurung siku
+        if 'Nama Barang' in df_display_penjualan.columns:
+            df_display_penjualan['Payment'] = df_display_penjualan['Nama Barang'].astype(str).str.extract(r'\[(.*?)\]')
+            df_display_penjualan['Payment'] = df_display_penjualan['Payment'].fillna('Lainnya')
+        
         kolom_tampil = ['Kode Item', 'Harga Modal', 'Harga Jual', 'Payment', 'Profit', '%Profit']
-        kolom_ada = [k for k in kolom_tampil if k in df_penjualan.columns]
-        # --- PYTHON MAGIC END ---
+        kolom_ada = [k for k in kolom_tampil if k in df_display_penjualan.columns]
         
         st.dataframe(
-            df_penjualan[kolom_ada], 
+            df_display_penjualan[kolom_ada], 
             use_container_width=True, 
             hide_index=True,
             column_config={
