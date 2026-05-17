@@ -119,11 +119,11 @@ if choice == "📊 Dashboard Utama":
         kolom_ada = [k for k in kolom_penting if k in df_recent.columns]
         
         st.dataframe(
-            df_recent[kolom_ada], 
+            df_recent[kolom_ada].style.set_properties(**{'text-align': 'center'}), 
             use_container_width=True, 
             hide_index=True, 
             column_config={
-                "Kode Item": st.column_config.TextColumn("Kode Barang", width="medium"),
+                "Kode Item": st.column_config.TextColumn("Kode Barang", width="large"),
                 "Total Penjualan": st.column_config.NumberColumn(format="Rp %d"),
                 "Profit": st.column_config.NumberColumn(format="Rp %d")
             }
@@ -142,11 +142,11 @@ if choice == "📊 Dashboard Utama":
             kolom_ada = [k for k in kolom_urutan if k in df_display.columns]
             
             st.dataframe(
-                df_display[kolom_ada], 
+                df_display[kolom_ada].style.set_properties(**{'text-align': 'center'}), 
                 use_container_width=True, 
                 hide_index=True, 
                 column_config={
-                    "Kode Item": st.column_config.TextColumn(width="small"),
+                    "Kode Item": st.column_config.TextColumn("Kode Barang", width="medium"),
                     "Stok": st.column_config.NumberColumn(width="small"),
                     "Status": st.column_config.TextColumn(width="small"),
                     "Harga Modal": st.column_config.NumberColumn(format="Rp %d")
@@ -231,17 +231,14 @@ elif choice == "🛒 Kasir & Resi":
 elif choice == "📈 Riwayat Penjualan":
     st.subheader("Laporan Data Penjualan")
     if not df_penjualan.empty:
-        # FITUR UPDATE: Tambah metrik 3 buat Total Profit
         col1, col2, col3 = st.columns(3)
         col1.metric("Total Baju Terjual (Qty)", f"{df_penjualan['Qty'].sum():,.0f} pcs")
         col2.metric("Total Omset Masuk", f"Rp {df_penjualan['Total Penjualan'].sum():,.0f}")
         col3.metric("Total Untung (Profit)", f"Rp {df_penjualan['Profit'].sum():,.0f}")
         
-        # FITUR UPDATE: Puter urutan dataframe jadi yang terbaru di atas
         df_display_penjualan = df_penjualan.copy()
         df_display_penjualan = df_display_penjualan.iloc[::-1]
         
-        # Tarik metode pembayaran dari dalam kurung siku
         if 'Nama Barang' in df_display_penjualan.columns:
             df_display_penjualan['Payment'] = df_display_penjualan['Nama Barang'].astype(str).str.extract(r'\[(.*?)\]')
             df_display_penjualan['Payment'] = df_display_penjualan['Payment'].fillna('Lainnya')
@@ -250,15 +247,16 @@ elif choice == "📈 Riwayat Penjualan":
         kolom_ada = [k for k in kolom_tampil if k in df_display_penjualan.columns]
         
         st.dataframe(
-            df_display_penjualan[kolom_ada], 
+            df_display_penjualan[kolom_ada].style.set_properties(**{'text-align': 'center'}), 
             use_container_width=True, 
             hide_index=True,
             column_config={
-                "Kode Item": st.column_config.TextColumn("Kode", width="small"),
+                "Kode Item": st.column_config.TextColumn("Kode Barang", width="large"),
                 "Harga Modal": st.column_config.NumberColumn(format="Rp %d"),
                 "Harga Jual": st.column_config.NumberColumn(format="Rp %d"),
-                "Payment": st.column_config.TextColumn("Payment", width="medium"),
-                "Profit": st.column_config.NumberColumn(format="Rp %d")
+                "Payment": st.column_config.TextColumn("Payment", width="small"),
+                "Profit": st.column_config.NumberColumn(format="Rp %d"),
+                "%Profit": st.column_config.TextColumn(width="small")
             }
         )
     else:
@@ -268,7 +266,11 @@ elif choice == "💸 Riwayat Operasional":
     st.subheader("Laporan Biaya Operasional")
     if not df_operasional.empty:
         st.metric("Total Uang Terpakai (Non-Stok)", f"Rp {df_operasional['Biaya'].sum():,.0f}")
-        st.dataframe(df_operasional, use_container_width=True, hide_index=True)
+        st.dataframe(
+            df_operasional.style.set_properties(**{'text-align': 'center'}), 
+            use_container_width=True, 
+            hide_index=True
+        )
     else:
         st.info("Belum ada data pengeluaran operasional.")
 
