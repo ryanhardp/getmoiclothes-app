@@ -136,17 +136,24 @@ if choice == "📊 Dashboard Utama":
         if not df_barang.empty:
             df_display = df_barang.copy()
             
-            # --- FITUR BARU: CUSTOM SORTING ---
-            # 1. Pisahin data Packaging (Kodenya P) sama Baju biasa
+            # --- FITUR BARU: 3 KASTA SORTING (Plastik -> Ready Newest -> Sold Out Newest) ---
+            # 1. Pisahin data Packaging (Kodenya P)
             df_pack = df_display[df_display['Kode Item'].astype(str).str.startswith('P')].copy()
+            
+            # 2. Ambil data Baju (Bukan P)
             df_baju = df_display[~df_display['Kode Item'].astype(str).str.startswith('P')].copy()
             
-            # 2. Urutin baju dari yang paling baru di-input (dibalik dari bawah ke atas)
-            df_baju = df_baju.iloc[::-1]
+            # 3. Pisahin Baju Ready dan Baju Sold Out
+            df_baju_ready = df_baju[df_baju['Stok'] > 0].copy()
+            df_baju_sold = df_baju[df_baju['Stok'] <= 0].copy()
             
-            # 3. Gabungin lagi, Packaging tetep nangkring di atas
-            df_display = pd.concat([df_pack, df_baju]).reset_index(drop=True)
-            # ----------------------------------
+            # 4. Urutin Baju Ready dan Sold Out dari yang paling baru diinput (dibalik)
+            df_baju_ready = df_baju_ready.iloc[::-1]
+            df_baju_sold = df_baju_sold.iloc[::-1]
+            
+            # 5. Gabungin jadi satu urutan
+            df_display = pd.concat([df_pack, df_baju_ready, df_baju_sold]).reset_index(drop=True)
+            # ---------------------------------------------------------------------------------
             
             df_display['Status'] = df_display['Stok'].apply(lambda x: "✅ Ready" if x > 0 else "❌ Sold Out")
             
