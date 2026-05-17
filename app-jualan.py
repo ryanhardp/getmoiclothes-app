@@ -123,7 +123,7 @@ if choice == "📊 Dashboard Utama":
             use_container_width=True, 
             hide_index=True, 
             column_config={
-                "Kode Item": st.column_config.TextColumn("Kode Barang", width="medium"), # UDAH DIKECILIN JADI MEDIUM
+                "Kode Item": st.column_config.TextColumn("Kode Barang", width="medium"),
                 "Total Penjualan": st.column_config.NumberColumn(format="Rp %d"),
                 "Profit": st.column_config.NumberColumn(format="Rp %d")
             }
@@ -243,7 +243,8 @@ elif choice == "📈 Riwayat Penjualan":
             df_display_penjualan['Payment'] = df_display_penjualan['Nama Barang'].astype(str).str.extract(r'\[(.*?)\]')
             df_display_penjualan['Payment'] = df_display_penjualan['Payment'].fillna('Lainnya')
         
-        kolom_tampil = ['Kode Item', 'Harga Modal', 'Harga Jual', 'Profit', 'Payment'] # Posisi kolom gue sesuaikan dikit biar proporsional
+        # FITUR UPDATE: %Profit dibalikin lagi ke sini
+        kolom_tampil = ['Kode Item', 'Harga Modal', 'Harga Jual', 'Payment', 'Profit', '%Profit']
         kolom_ada = [k for k in kolom_tampil if k in df_display_penjualan.columns]
         
         st.dataframe(
@@ -251,11 +252,12 @@ elif choice == "📈 Riwayat Penjualan":
             use_container_width=True, 
             hide_index=True,
             column_config={
-                "Kode Item": st.column_config.TextColumn("Kode Barang", width="medium"), # UDAH DIKECILIN
+                "Kode Item": st.column_config.TextColumn("Kode Barang", width="medium"),
                 "Harga Modal": st.column_config.NumberColumn(format="Rp %d"),
                 "Harga Jual": st.column_config.NumberColumn(format="Rp %d"),
-                "Payment": st.column_config.TextColumn("Payment", width="small"),
-                "Profit": st.column_config.NumberColumn(format="Rp %d")
+                "Payment": st.column_config.TextColumn("Payment", width="medium"), # FITUR UPDATE: Dibikin medium biar kebaca
+                "Profit": st.column_config.NumberColumn(format="Rp %d"),
+                "%Profit": st.column_config.TextColumn("%Profit", width="small") # Ditampilin lagi
             }
         )
     else:
