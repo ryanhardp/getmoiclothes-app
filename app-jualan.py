@@ -135,7 +135,19 @@ if choice == "📊 Dashboard Utama":
     with st.expander("👀 Klik di sini untuk melihat Rincian Sisa Stok & Status"):
         if not df_barang.empty:
             df_display = df_barang.copy()
-            df_display = df_display.sort_values(by='Stok', ascending=False)
+            
+            # --- FITUR BARU: CUSTOM SORTING ---
+            # 1. Pisahin data Packaging (Kodenya P) sama Baju biasa
+            df_pack = df_display[df_display['Kode Item'].astype(str).str.startswith('P')].copy()
+            df_baju = df_display[~df_display['Kode Item'].astype(str).str.startswith('P')].copy()
+            
+            # 2. Urutin baju dari yang paling baru di-input (dibalik dari bawah ke atas)
+            df_baju = df_baju.iloc[::-1]
+            
+            # 3. Gabungin lagi, Packaging tetep nangkring di atas
+            df_display = pd.concat([df_pack, df_baju]).reset_index(drop=True)
+            # ----------------------------------
+            
             df_display['Status'] = df_display['Stok'].apply(lambda x: "✅ Ready" if x > 0 else "❌ Sold Out")
             
             kolom_urutan = ['Kode Item', 'Nama Barang', 'Harga Modal', 'Stok', 'Status']
@@ -243,7 +255,6 @@ elif choice == "📈 Riwayat Penjualan":
             df_display_penjualan['Payment'] = df_display_penjualan['Nama Barang'].astype(str).str.extract(r'\[(.*?)\]')
             df_display_penjualan['Payment'] = df_display_penjualan['Payment'].fillna('Lainnya')
         
-        # FITUR UPDATE: %Profit dibalikin lagi ke sini
         kolom_tampil = ['Kode Item', 'Harga Modal', 'Harga Jual', 'Payment', 'Profit', '%Profit']
         kolom_ada = [k for k in kolom_tampil if k in df_display_penjualan.columns]
         
@@ -255,9 +266,9 @@ elif choice == "📈 Riwayat Penjualan":
                 "Kode Item": st.column_config.TextColumn("Kode Barang", width="medium"),
                 "Harga Modal": st.column_config.NumberColumn(format="Rp %d"),
                 "Harga Jual": st.column_config.NumberColumn(format="Rp %d"),
-                "Payment": st.column_config.TextColumn("Payment", width="medium"), # FITUR UPDATE: Dibikin medium biar kebaca
+                "Payment": st.column_config.TextColumn("Payment", width="medium"),
                 "Profit": st.column_config.NumberColumn(format="Rp %d"),
-                "%Profit": st.column_config.TextColumn("%Profit", width="small") # Ditampilin lagi
+                "%Profit": st.column_config.TextColumn("%Profit", width="small")
             }
         )
     else:
