@@ -136,24 +136,31 @@ if choice == "📊 Dashboard Utama":
         if not df_barang.empty:
             df_display = df_barang.copy()
             
-            # --- FITUR BARU: 3 KASTA SORTING (Plastik -> Ready Newest -> Sold Out Newest) ---
-            # 1. Pisahin data Packaging (Kodenya P)
-            df_pack = df_display[df_display['Kode Item'].astype(str).str.startswith('P')].copy()
+            # --- FITUR UPDATE V22: PENGURUTAN SUPER KETAT ---
+            # Bersihin spasi tersembunyi biar P1 kebaca sempurna
+            df_display['Kode_Clean'] = df_display['Kode Item'].astype(str).str.strip().str.upper()
+            
+            # Rekam nomor baris asli dari Google Sheets buat patokan "Terakhir Diinput"
+            df_display['Urutan_Asli'] = range(len(df_display))
+            
+            # 1. Pisahin data Packaging (Awalan P) -> Urutin sesuai aslinya
+            df_pack = df_display[df_display['Kode_Clean'].str.startswith('P')].copy()
+            df_pack = df_pack.sort_values(by='Urutan_Asli', ascending=True)
             
             # 2. Ambil data Baju (Bukan P)
-            df_baju = df_display[~df_display['Kode Item'].astype(str).str.startswith('P')].copy()
+            df_baju = df_display[~df_display['Kode_Clean'].str.startswith('P')].copy()
             
             # 3. Pisahin Baju Ready dan Baju Sold Out
             df_baju_ready = df_baju[df_baju['Stok'] > 0].copy()
             df_baju_sold = df_baju[df_baju['Stok'] <= 0].copy()
             
-            # 4. Urutin Baju Ready dan Sold Out dari yang paling baru diinput (dibalik)
-            df_baju_ready = df_baju_ready.iloc[::-1]
-            df_baju_sold = df_baju_sold.iloc[::-1]
+            # 4. Urutin dari yang terbaru diinput (Urutan_Asli dibalik dari besar ke kecil)
+            df_baju_ready = df_baju_ready.sort_values(by='Urutan_Asli', ascending=False)
+            df_baju_sold = df_baju_sold.sort_values(by='Urutan_Asli', ascending=False)
             
-            # 5. Gabungin jadi satu urutan
+            # 5. Gabungin! Plastik -> Ready Terbaru -> Sold Terbaru
             df_display = pd.concat([df_pack, df_baju_ready, df_baju_sold]).reset_index(drop=True)
-            # ---------------------------------------------------------------------------------
+            # ------------------------------------------------
             
             df_display['Status'] = df_display['Stok'].apply(lambda x: "✅ Ready" if x > 0 else "❌ Sold Out")
             
