@@ -89,7 +89,7 @@ choice = st.sidebar.radio("Navigasi Menu", menu)
 
 if choice == "📊 Dashboard Utama":
     st.subheader("Ringkasan Keuangan Global")
-    modal_awal = 1000000
+    modal_awal = 700000
     
     total_aset_stok = (df_barang['Harga Modal'] * df_barang['Stok']).sum() if 'Harga Modal' in df_barang.columns else 0
     total_kas_masuk = df_penjualan['Total Penjualan'].sum() if 'Total Penjualan' in df_penjualan.columns else 0
