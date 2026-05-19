@@ -76,7 +76,47 @@ st.set_page_config(page_title="GETMOICLOTHES Online", layout="wide", page_icon="
 st.title("👗 GETMOICLOTHES")
 st.markdown("*Advanced Inventory & Point of Sales*")
 st.markdown("---")
+# --- CSS HACK BIAR UI GLOWING ---
+st.markdown("""
+<style>
+    /* 1. Ganti Font ke Poppins ala Startup */
+    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap');
+    
+    html, body, [class*="css"] {
+        font-family: 'Poppins', sans-serif;
+    }
 
+    /* 2. Bikin Kotak Angka (Metrics) Jadi Kartu Melayang */
+    div[data-testid="metric-container"] {
+        background-color: #ffffff;
+        border-radius: 15px;
+        padding: 15px 20px;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+        border: 1px solid #f8f9fa;
+        border-left: 5px solid #FF2B7A; /* Garis aksen pink di kiri */
+    }
+
+    /* 3. Percantik Tombol Bawaan */
+    div.stButton > button:first-child {
+        border-radius: 25px;
+        font-weight: 600;
+        box-shadow: 0 4px 6px rgba(255, 43, 122, 0.2);
+        transition: all 0.3s ease;
+    }
+    
+    div.stButton > button:first-child:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 12px rgba(255, 43, 122, 0.4);
+    }
+    
+    /* 4. Bikin Tabel Lebih Elegan */
+    div[data-testid="stDataFrame"] {
+        border-radius: 10px;
+        overflow: hidden;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    }
+</style>
+""", unsafe_allow_html=True)
 menu = [
     "📊 Dashboard Utama", 
     "🛒 Kasir & Resi", 
