@@ -71,60 +71,60 @@ if not df_operasional.empty:
     if 'Biaya' in df_operasional.columns:
         df_operasional['Biaya'] = bersihkan_angka(df_operasional['Biaya'])
 
-# --- CSS HACK BIAR UI GLOWING (DARK NEON EDITION) ---
+# --- CSS HACK BIAR UI GLOWING (ULTIMATE DARK NEON) ---
 st.markdown("""
 <style>
-    /* 1. Font Poppins kekinian */
+    /* 1. Font Poppins kekinian (Paksa ganti semua) */
     @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap');
     
-    html, body, [class*="css"] {
-        font-family: 'Poppins', sans-serif;
+    * {
+        font-family: 'Poppins', sans-serif !important;
     }
 
-    /* 2. Kartu Metrik (Angka) ala Glassmorphism / Neon */
+    /* 2. Kartu Metrik (Angka di Dashboard Utama) */
     div[data-testid="metric-container"] {
-        background-color: #1E1E24; /* Warna background kartu gelap elegan */
-        border-radius: 15px;
-        padding: 15px 20px;
-        box-shadow: 0 4px 15px rgba(255, 43, 122, 0.15); /* Bayangan glowing pink */
-        border: 1px solid #2D2D35; /* Garis pinggir halus */
-        border-left: 5px solid #FF2B7A; /* Aksen tebal pink di kiri */
-        transition: transform 0.2s ease-in-out;
+        background-color: #1E1E24 !important; 
+        border-radius: 15px !important;
+        padding: 15px 20px !important;
+        box-shadow: 0 4px 15px rgba(255, 43, 122, 0.15) !important;
+        border: 1px solid #2D2D35 !important;
+        border-left: 5px solid #FF2B7A !important; 
+        transition: transform 0.2s ease-in-out !important;
     }
     
-    /* Efek kartu membesar dikit pas disentuh mouse */
     div[data-testid="metric-container"]:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 6px 20px rgba(255, 43, 122, 0.3);
+        transform: translateY(-3px) !important;
+        box-shadow: 0 6px 20px rgba(255, 43, 122, 0.3) !important;
     }
 
-    /* 3. Percantik Tombol Bawaan */
-    div.stButton > button:first-child {
-        background: linear-gradient(90deg, #FF2B7A 0%, #FF5E96 100%); /* Gradasi pink di tombol */
-        color: white;
-        border: none;
-        border-radius: 25px;
-        font-weight: 600;
-        box-shadow: 0 4px 10px rgba(255, 43, 122, 0.3);
-        transition: all 0.3s ease;
+    /* 3. Paksa SEMUA Tombol jadi Pink Gradasi (Termasuk yang di dalam Form) */
+    div.stButton > button, div[data-testid="stForm"] button {
+        background: linear-gradient(90deg, #FF2B7A 0%, #FF5E96 100%) !important;
+        color: white !important;
+        border: none !important;
+        border-radius: 25px !important;
+        font-weight: 600 !important;
+        box-shadow: 0 4px 10px rgba(255, 43, 122, 0.3) !important;
+        transition: all 0.3s ease !important;
     }
     
-    div.stButton > button:first-child:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 15px rgba(255, 43, 122, 0.5);
+    div.stButton > button:hover, div[data-testid="stForm"] button:hover {
+        transform: translateY(-2px) !important;
+        box-shadow: 0 6px 15px rgba(255, 43, 122, 0.6) !important;
+        border: none !important;
     }
     
-    /* 4. Percantik Tabel (Biar nyatu sama dark mode) */
+    /* 4. Tabel Elegan */
     div[data-testid="stDataFrame"] {
-        border-radius: 12px;
-        overflow: hidden;
-        border: 1px solid #2D2D35;
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        border-radius: 12px !important;
+        overflow: hidden !important;
+        border: 1px solid #2D2D35 !important;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2) !important;
     }
 
-    /* 5. Custom Sidebar Background (Gradasi gelap ke pink tua di paling bawah) */
+    /* 5. Custom Sidebar Background */
     [data-testid="stSidebar"] {
-        background: linear-gradient(180deg, #111111 60%, #2A0010 100%);
+        background: linear-gradient(180deg, #111111 60%, #2A0010 100%) !important;
     }
 </style>
 """, unsafe_allow_html=True)
