@@ -71,22 +71,23 @@ if not df_operasional.empty:
     if 'Biaya' in df_operasional.columns:
         df_operasional['Biaya'] = bersihkan_angka(df_operasional['Biaya'])
 
-# --- CSS HACK BIAR UI GLOWING (FIX ICON RUSAK) ---
+# --- CSS HACK BIAR UI GLOWING (FIX ICON 100% AMAN) ---
 st.markdown("""
 <style>
-    /* 1. Font Poppins kekinian (TARGET AMAN, GAK BIKIN ICON RUSAK) */
+    /* 1. Font Poppins kekinian */
     @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap');
     
-    html, body, p, div, h1, h2, h3, h4, h5, h6, ul, ol, li, span, label, td, th {
+    /* Ubah font khusus untuk teks aja, hindari maksa pakai bintang (*) */
+    div, p, h1, h2, h3, h4, h5, h6, label, td, th, li {
         font-family: 'Poppins', sans-serif !important;
     }
     
-    /* Kembalikan font bawaan untuk icon panah/menu biar gak error teks */
-    .material-symbols-rounded, .material-icons {
+    /* KUNCI FIX: Kembalikan hak milik font Icon Streamlit secara paksa */
+    span[class*="material"], span[class*="icon"], [data-testid*="Icon"], [data-testid*="icon"] {
         font-family: 'Material Symbols Rounded', 'Material Icons', sans-serif !important;
     }
 
-    /* 2. Kartu Metrik (Targeting class stMetric yang baru) */
+    /* 2. Kartu Metrik Neon */
     div[data-testid="stMetric"], .stMetric {
         background-color: #1E1E24 !important; 
         border-radius: 15px !important;
