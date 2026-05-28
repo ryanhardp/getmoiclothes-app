@@ -71,45 +71,32 @@ if not df_operasional.empty:
     if 'Biaya' in df_operasional.columns:
         df_operasional['Biaya'] = bersihkan_angka(df_operasional['Biaya'])
 
-# --- UI STREAMLIT ---
-st.set_page_config(page_title="GETMOICLOTHES Online", layout="wide", page_icon="👗")
-st.title("👗 GETMOICLOTHES")
-st.markdown("*Advanced Inventory & Point of Sales*")
-st.markdown("---")
 # --- CSS HACK BIAR UI GLOWING ---
 st.markdown("""
 <style>
-    /* 1. Ganti Font ke Poppins ala Startup */
     @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap');
     
     html, body, [class*="css"] {
         font-family: 'Poppins', sans-serif;
     }
-
-    /* 2. Bikin Kotak Angka (Metrics) Jadi Kartu Melayang */
     div[data-testid="metric-container"] {
         background-color: #ffffff;
         border-radius: 15px;
         padding: 15px 20px;
         box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
         border: 1px solid #f8f9fa;
-        border-left: 5px solid #FF2B7A; /* Garis aksen pink di kiri */
+        border-left: 5px solid #FF2B7A; 
     }
-
-    /* 3. Percantik Tombol Bawaan */
     div.stButton > button:first-child {
         border-radius: 25px;
         font-weight: 600;
         box-shadow: 0 4px 6px rgba(255, 43, 122, 0.2);
         transition: all 0.3s ease;
     }
-    
     div.stButton > button:first-child:hover {
         transform: translateY(-2px);
         box-shadow: 0 6px 12px rgba(255, 43, 122, 0.4);
     }
-    
-    /* 4. Bikin Tabel Lebih Elegan */
     div[data-testid="stDataFrame"] {
         border-radius: 10px;
         overflow: hidden;
@@ -117,12 +104,19 @@ st.markdown("""
     }
 </style>
 """, unsafe_allow_html=True)
+
+# --- UI STREAMLIT ---
+st.set_page_config(page_title="GETMOICLOTHES Online", layout="wide", page_icon="👗")
+st.title("👗 GETMOICLOTHES")
+st.markdown("*Advanced Inventory & Point of Sales*")
+st.markdown("---")
+
 menu = [
     "📊 Dashboard Utama", 
     "🛒 Kasir & Resi", 
     "📈 Riwayat Penjualan", 
     "💸 Riwayat Operasional", 
-    "📦 Input Stok Barang", 
+    "📦 Manajemen Stok", # Nama Menu Diubah
     "📝 Input Operasional"
 ]
 choice = st.sidebar.radio("Navigasi Menu", menu)
@@ -175,32 +169,20 @@ if choice == "📊 Dashboard Utama":
     with st.expander("👀 Klik di sini untuk melihat Rincian Sisa Stok & Status"):
         if not df_barang.empty:
             df_display = df_barang.copy()
-            
-            # --- FITUR UPDATE V22: PENGURUTAN SUPER KETAT ---
-            # Bersihin spasi tersembunyi biar P1 kebaca sempurna
             df_display['Kode_Clean'] = df_display['Kode Item'].astype(str).str.strip().str.upper()
-            
-            # Rekam nomor baris asli dari Google Sheets buat patokan "Terakhir Diinput"
             df_display['Urutan_Asli'] = range(len(df_display))
             
-            # 1. Pisahin data Packaging (Awalan P) -> Urutin sesuai aslinya
             df_pack = df_display[df_display['Kode_Clean'].str.startswith('P')].copy()
             df_pack = df_pack.sort_values(by='Urutan_Asli', ascending=True)
             
-            # 2. Ambil data Baju (Bukan P)
             df_baju = df_display[~df_display['Kode_Clean'].str.startswith('P')].copy()
-            
-            # 3. Pisahin Baju Ready dan Baju Sold Out
             df_baju_ready = df_baju[df_baju['Stok'] > 0].copy()
             df_baju_sold = df_baju[df_baju['Stok'] <= 0].copy()
             
-            # 4. Urutin dari yang terbaru diinput (Urutan_Asli dibalik dari besar ke kecil)
             df_baju_ready = df_baju_ready.sort_values(by='Urutan_Asli', ascending=False)
             df_baju_sold = df_baju_sold.sort_values(by='Urutan_Asli', ascending=False)
             
-            # 5. Gabungin! Plastik -> Ready Terbaru -> Sold Terbaru
             df_display = pd.concat([df_pack, df_baju_ready, df_baju_sold]).reset_index(drop=True)
-            # ------------------------------------------------
             
             df_display['Status'] = df_display['Stok'].apply(lambda x: "✅ Ready" if x > 0 else "❌ Sold Out")
             
@@ -340,20 +322,53 @@ elif choice == "💸 Riwayat Operasional":
     else:
         st.info("Belum ada data pengeluaran operasional.")
 
-elif choice == "📦 Input Stok Barang":
-    st.subheader("Tambah Stok Baru")
-    with st.form("form_stok"):
-        nama = st.text_input("Nama Barang / Packaging")
-        h_modal = st.number_input("Harga Modal per Pcs", min_value=0)
-        stok_awal = st.number_input("Jumlah Stok", min_value=1)
-        
-        if st.form_submit_button("Simpan Data"):
-            if nama:
-                kode_baru = generate_kode(nama, df_barang)
-                sheet_barang.append_row([kode_baru, nama, h_modal, stok_awal])
-                st.toast(f'{nama} masuk dengan Kode: {kode_baru}', icon='📦')
-            else: 
-                st.error("Nama wajib diisi.")
+# --- FITUR UPDATE V23: MENU STOK JADI 2 TAB ---
+elif choice == "📦 Manajemen Stok":
+    st.subheader("Manajemen Stok Barang")
+    tab1, tab2 = st.tabs(["➕ Barang Baru", "🔄 Restock / Update Harga"])
+    
+    with tab1:
+        with st.form("form_stok_baru"):
+            st.info("Gunakan ini HANYA untuk baju/barang yang belum pernah diinput.")
+            nama = st.text_input("Nama Barang / Packaging")
+            h_modal = st.number_input("Harga Modal per Pcs", min_value=0)
+            stok_awal = st.number_input("Jumlah Stok", min_value=1)
+            
+            if st.form_submit_button("Simpan Data Baru"):
+                if nama:
+                    kode_baru = generate_kode(nama, df_barang)
+                    sheet_barang.append_row([kode_baru, nama, h_modal, stok_awal])
+                    st.toast(f'{nama} masuk dengan Kode: {kode_baru}', icon='📦')
+                else: 
+                    st.error("Nama wajib diisi.")
+                    
+    with tab2:
+        if not df_barang.empty:
+            # Bikin dropdown list barang biar gampang dicari
+            opsi_barang = [f"{row['Kode Item']} - {row['Nama Barang']} (Sisa: {row['Stok']} | HPP: Rp{row['Harga Modal']})" for _, row in df_barang.iterrows()]
+            barang_dipilih = st.selectbox("Cari & Pilih Barang yang mau di-update:", opsi_barang)
+            
+            with st.form("form_restock"):
+                st.markdown("Biarkan angka **0** jika tidak ada perubahan.")
+                tambah_stok = st.number_input("Berapa Pcs Tambahan Stok Baru? (+)", min_value=0, value=0)
+                harga_baru = st.number_input("Harga Modal Baru (Kalo harganya berubah dari sebelumnya)", min_value=0, value=0)
+                
+                if st.form_submit_button("Update Stok & Harga"):
+                    if barang_dipilih:
+                        # Cari baris ke berapa di Google Sheets
+                        kode = barang_dipilih.split(" - ")[0]
+                        row_idx = df_barang[df_barang['Kode Item'] == kode].index[0] + 2
+                        stok_lama = df_barang[df_barang['Kode Item'] == kode].iloc[0]['Stok']
+                        
+                        # Tembak update ke Google Sheets
+                        if tambah_stok > 0:
+                            sheet_barang.update_cell(row_idx, 4, int(stok_lama + tambah_stok))
+                        if harga_baru > 0:
+                            sheet_barang.update_cell(row_idx, 3, int(harga_baru))
+                            
+                        st.toast('Stok/Harga berhasil diupdate!', icon='🔄')
+        else:
+            st.info("Belum ada data barang.")
 
 elif choice == "📝 Input Operasional":
     st.subheader("Catat Pengeluaran Murni")
