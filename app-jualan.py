@@ -71,14 +71,19 @@ if not df_operasional.empty:
     if 'Biaya' in df_operasional.columns:
         df_operasional['Biaya'] = bersihkan_angka(df_operasional['Biaya'])
 
-# --- CSS HACK BIAR UI GLOWING (FIX STREAMLIT TERBARU) ---
+# --- CSS HACK BIAR UI GLOWING (FIX ICON RUSAK) ---
 st.markdown("""
 <style>
-    /* 1. Font Poppins kekinian */
+    /* 1. Font Poppins kekinian (TARGET AMAN, GAK BIKIN ICON RUSAK) */
     @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap');
     
-    * {
+    html, body, p, div, h1, h2, h3, h4, h5, h6, ul, ol, li, span, label, td, th {
         font-family: 'Poppins', sans-serif !important;
+    }
+    
+    /* Kembalikan font bawaan untuk icon panah/menu biar gak error teks */
+    .material-symbols-rounded, .material-icons {
+        font-family: 'Material Symbols Rounded', 'Material Icons', sans-serif !important;
     }
 
     /* 2. Kartu Metrik (Targeting class stMetric yang baru) */
@@ -128,7 +133,6 @@ st.markdown("""
     }
 </style>
 """, unsafe_allow_html=True)
-
 # --- UI STREAMLIT ---
 st.set_page_config(page_title="GETMOICLOTHES Online", layout="wide", page_icon="👗")
 st.title("👗 GETMOICLOTHES")
