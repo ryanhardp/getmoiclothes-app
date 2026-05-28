@@ -71,18 +71,18 @@ if not df_operasional.empty:
     if 'Biaya' in df_operasional.columns:
         df_operasional['Biaya'] = bersihkan_angka(df_operasional['Biaya'])
 
-# --- CSS HACK BIAR UI GLOWING (ULTIMATE DARK NEON) ---
+# --- CSS HACK BIAR UI GLOWING (FIX STREAMLIT TERBARU) ---
 st.markdown("""
 <style>
-    /* 1. Font Poppins kekinian (Paksa ganti semua) */
+    /* 1. Font Poppins kekinian */
     @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap');
     
     * {
         font-family: 'Poppins', sans-serif !important;
     }
 
-    /* 2. Kartu Metrik (Angka di Dashboard Utama) */
-    div[data-testid="metric-container"] {
+    /* 2. Kartu Metrik (Targeting class stMetric yang baru) */
+    div[data-testid="stMetric"], .stMetric {
         background-color: #1E1E24 !important; 
         border-radius: 15px !important;
         padding: 15px 20px !important;
@@ -92,12 +92,12 @@ st.markdown("""
         transition: transform 0.2s ease-in-out !important;
     }
     
-    div[data-testid="metric-container"]:hover {
+    div[data-testid="stMetric"]:hover, .stMetric:hover {
         transform: translateY(-3px) !important;
         box-shadow: 0 6px 20px rgba(255, 43, 122, 0.3) !important;
     }
 
-    /* 3. Paksa SEMUA Tombol jadi Pink Gradasi (Termasuk yang di dalam Form) */
+    /* 3. Tombol Pink Gradasi */
     div.stButton > button, div[data-testid="stForm"] button {
         background: linear-gradient(90deg, #FF2B7A 0%, #FF5E96 100%) !important;
         color: white !important;
@@ -128,6 +128,7 @@ st.markdown("""
     }
 </style>
 """, unsafe_allow_html=True)
+
 # --- UI STREAMLIT ---
 st.set_page_config(page_title="GETMOICLOTHES Online", layout="wide", page_icon="👗")
 st.title("👗 GETMOICLOTHES")
@@ -139,7 +140,7 @@ menu = [
     "🛒 Kasir & Resi", 
     "📈 Riwayat Penjualan", 
     "💸 Riwayat Operasional", 
-    "📦 Manajemen Stok", # Nama Menu Diubah
+    "📦 Manajemen Stok",
     "📝 Input Operasional"
 ]
 choice = st.sidebar.radio("Navigasi Menu", menu)
@@ -345,7 +346,6 @@ elif choice == "💸 Riwayat Operasional":
     else:
         st.info("Belum ada data pengeluaran operasional.")
 
-# --- FITUR UPDATE V23: MENU STOK JADI 2 TAB ---
 elif choice == "📦 Manajemen Stok":
     st.subheader("Manajemen Stok Barang")
     tab1, tab2 = st.tabs(["➕ Barang Baru", "🔄 Restock / Update Harga"])
@@ -367,7 +367,6 @@ elif choice == "📦 Manajemen Stok":
                     
     with tab2:
         if not df_barang.empty:
-            # Bikin dropdown list barang biar gampang dicari
             opsi_barang = [f"{row['Kode Item']} - {row['Nama Barang']} (Sisa: {row['Stok']} | HPP: Rp{row['Harga Modal']})" for _, row in df_barang.iterrows()]
             barang_dipilih = st.selectbox("Cari & Pilih Barang yang mau di-update:", opsi_barang)
             
@@ -378,12 +377,10 @@ elif choice == "📦 Manajemen Stok":
                 
                 if st.form_submit_button("Update Stok & Harga"):
                     if barang_dipilih:
-                        # Cari baris ke berapa di Google Sheets
                         kode = barang_dipilih.split(" - ")[0]
                         row_idx = df_barang[df_barang['Kode Item'] == kode].index[0] + 2
                         stok_lama = df_barang[df_barang['Kode Item'] == kode].iloc[0]['Stok']
                         
-                        # Tembak update ke Google Sheets
                         if tambah_stok > 0:
                             sheet_barang.update_cell(row_idx, 4, int(stok_lama + tambah_stok))
                         if harga_baru > 0:
