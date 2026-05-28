@@ -71,40 +71,63 @@ if not df_operasional.empty:
     if 'Biaya' in df_operasional.columns:
         df_operasional['Biaya'] = bersihkan_angka(df_operasional['Biaya'])
 
-# --- CSS HACK BIAR UI GLOWING ---
+# --- CSS HACK BIAR UI GLOWING (DARK NEON EDITION) ---
 st.markdown("""
 <style>
+    /* 1. Font Poppins kekinian */
     @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap');
     
     html, body, [class*="css"] {
         font-family: 'Poppins', sans-serif;
     }
+
+    /* 2. Kartu Metrik (Angka) ala Glassmorphism / Neon */
     div[data-testid="metric-container"] {
-        background-color: #ffffff;
+        background-color: #1E1E24; /* Warna background kartu gelap elegan */
         border-radius: 15px;
         padding: 15px 20px;
-        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
-        border: 1px solid #f8f9fa;
-        border-left: 5px solid #FF2B7A; 
+        box-shadow: 0 4px 15px rgba(255, 43, 122, 0.15); /* Bayangan glowing pink */
+        border: 1px solid #2D2D35; /* Garis pinggir halus */
+        border-left: 5px solid #FF2B7A; /* Aksen tebal pink di kiri */
+        transition: transform 0.2s ease-in-out;
     }
+    
+    /* Efek kartu membesar dikit pas disentuh mouse */
+    div[data-testid="metric-container"]:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 6px 20px rgba(255, 43, 122, 0.3);
+    }
+
+    /* 3. Percantik Tombol Bawaan */
     div.stButton > button:first-child {
+        background: linear-gradient(90deg, #FF2B7A 0%, #FF5E96 100%); /* Gradasi pink di tombol */
+        color: white;
+        border: none;
         border-radius: 25px;
         font-weight: 600;
-        box-shadow: 0 4px 6px rgba(255, 43, 122, 0.2);
+        box-shadow: 0 4px 10px rgba(255, 43, 122, 0.3);
         transition: all 0.3s ease;
     }
+    
     div.stButton > button:first-child:hover {
         transform: translateY(-2px);
-        box-shadow: 0 6px 12px rgba(255, 43, 122, 0.4);
+        box-shadow: 0 6px 15px rgba(255, 43, 122, 0.5);
     }
+    
+    /* 4. Percantik Tabel (Biar nyatu sama dark mode) */
     div[data-testid="stDataFrame"] {
-        border-radius: 10px;
+        border-radius: 12px;
         overflow: hidden;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        border: 1px solid #2D2D35;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    }
+
+    /* 5. Custom Sidebar Background (Gradasi gelap ke pink tua di paling bawah) */
+    [data-testid="stSidebar"] {
+        background: linear-gradient(180deg, #111111 60%, #2A0010 100%);
     }
 </style>
 """, unsafe_allow_html=True)
-
 # --- UI STREAMLIT ---
 st.set_page_config(page_title="GETMOICLOTHES Online", layout="wide", page_icon="👗")
 st.title("👗 GETMOICLOTHES")
