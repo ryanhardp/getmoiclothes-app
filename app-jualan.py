@@ -156,7 +156,10 @@ if choice == "📊 Dashboard Utama":
     
     total_aset_stok = (df_barang['Harga Modal'] * df_barang['Stok']).sum() if 'Harga Modal' in df_barang.columns else 0
     total_kas_masuk = df_penjualan['Total Penjualan'].sum() if 'Total Penjualan' in df_penjualan.columns else 0
-    total_hpp_laku = (df_penjualan['Harga Modal'] * df_penjualan['Qty']).sum() if 'Harga Modal' in df_penjualan.columns else 0
+    
+    # PERBAIKAN DI SINI: Menghapus perkalian * df_penjualan['Qty']
+    total_hpp_laku = df_penjualan['Harga Modal'].sum() if 'Harga Modal' in df_penjualan.columns else 0
+    
     total_biaya_ops = df_operasional['Biaya'].sum() if 'Biaya' in df_operasional.columns else 0
     
     laba_kotor = df_penjualan['Profit'].sum() if 'Profit' in df_penjualan.columns else 0
